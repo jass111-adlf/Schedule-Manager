@@ -16,17 +16,26 @@ export interface EventOccurrence {
   reminderMinutesBefore: number | null; reminderMethod: string | null;
   timezone: string; recurrenceType: string; repeatUntil: Date | null;
   createdBy: string; createdAt: Date; updatedAt: Date;
+  calendarId: string | null; customTypeId: string | null;
+  customType: { name: string; color: string } | null;
   start: Date; end: Date; status: 'upcoming' | 'completed' | 'cancelled';
 }
 
-export async function listEvents(userId: string, windowStart?: Date, windowEnd?: Date): Promise<EventOccurrence[]> {
+export async function listEvents(
+  userId: string,
+  windowStart?: Date,
+  windowEnd?: Date,
+  calendarId?: string,
+): Promise<EventOccurrence[]> {
   const events = await prisma.event.findMany({
     where: {
+      ...(calendarId ? { calendarId } : {}),
       OR: [
         { createdBy: userId },
         { invitations: { some: { invitedUserId: userId, invitationStatus: 'accepted' } } },
       ],
     },
+    include: { customType: { select: { name: true, color: true } } },
   });
 
   const occurrences: EventOccurrence[] = [];
@@ -38,6 +47,7 @@ export async function listEvents(userId: string, windowStart?: Date, windowEnd?:
         reminderMinutesBefore: event.reminderMinutesBefore, reminderMethod: event.reminderMethod,
         timezone: event.timezone, recurrenceType: event.recurrenceType, repeatUntil: event.repeatUntil,
         createdBy: event.createdBy, createdAt: event.createdAt, updatedAt: event.updatedAt,
+        calendarId: event.calendarId, customTypeId: event.customTypeId, customType: event.customType,
         start: occ.start, end: occ.end, status: deriveEventStatus(event.status, occ.end),
       });
     }
@@ -51,10 +61,13 @@ export async function getEventById(eventId: string, userId: string) {
       id: eventId,
       OR: [
         { createdBy: userId },
-        { invitations: { some: { invitedUserId: userId, invitationStatus: 'accepted' } } },
+        { invitations: { some: { invitedUserId: userId } } },
       ],
     },
-    include: { invitations: { include: { invitedUser: { select: { id: true, name: true, email: true } } } } },
+    include: {
+      customType: { select: { name: true, color: true } },
+      invitations: { include: { invitedUser: { select: { id: true, name: true, email: true } } } },
+    },
   });
   if (!event) throw appError('Event not found', 404);
   return { ...event, status: deriveEventStatus(event.status, event.endDatetime) };
@@ -77,6 +90,8 @@ export async function createEvent(userId: string, input: CreateEventInput) {
       timezone: input.timezone,
       recurrenceType: input.recurrenceType,
       repeatUntil: input.repeatUntil ? new Date(input.repeatUntil) : null,
+      calendarId: input.calendarId ?? null,
+      customTypeId: input.customTypeId ?? null,
     },
   });
   await scheduleReminders(event, [userId]);
@@ -91,23 +106,24 @@ export async function updateEvent(eventId: string, userId: string, input: Update
   const updated = await prisma.event.update({
     where: { id: eventId },
     data: {
-      ...(input.title !== undefined && { title: input.title }),
-      ...(input.description !== undefined && { description: input.description }),
-      ...(input.location !== undefined && { location: input.location }),
-      ...(input.startDatetime !== undefined && { startDatetime: new Date(input.startDatetime) }),
-      ...(input.endDatetime !== undefined && { endDatetime: new Date(input.endDatetime) }),
-      ...(input.allDay !== undefined && { allDay: input.allDay }),
-      ...(input.visibility !== undefined && { visibility: input.visibility }),
-      ...(input.eventType !== undefined && { eventType: input.eventType }),
+      ...(input.title              !== undefined && { title: input.title }),
+      ...(input.description        !== undefined && { description: input.description }),
+      ...(input.location           !== undefined && { location: input.location }),
+      ...(input.startDatetime      !== undefined && { startDatetime: new Date(input.startDatetime) }),
+      ...(input.endDatetime        !== undefined && { endDatetime: new Date(input.endDatetime) }),
+      ...(input.allDay             !== undefined && { allDay: input.allDay }),
+      ...(input.visibility         !== undefined && { visibility: input.visibility }),
+      ...(input.eventType          !== undefined && { eventType: input.eventType }),
       ...(input.reminderMinutesBefore !== undefined && { reminderMinutesBefore: input.reminderMinutesBefore }),
-      ...(input.reminderMethod !== undefined && { reminderMethod: input.reminderMethod }),
-      ...(input.timezone !== undefined && { timezone: input.timezone }),
-      ...(input.recurrenceType !== undefined && { recurrenceType: input.recurrenceType }),
-      ...(input.repeatUntil !== undefined && { repeatUntil: input.repeatUntil ? new Date(input.repeatUntil) : null }),
+      ...(input.reminderMethod     !== undefined && { reminderMethod: input.reminderMethod }),
+      ...(input.timezone           !== undefined && { timezone: input.timezone }),
+      ...(input.recurrenceType     !== undefined && { recurrenceType: input.recurrenceType }),
+      ...(input.repeatUntil        !== undefined && { repeatUntil: input.repeatUntil ? new Date(input.repeatUntil) : null }),
+      ...(input.calendarId         !== undefined && { calendarId: input.calendarId ?? null }),
+      ...(input.customTypeId       !== undefined && { customTypeId: input.customTypeId ?? null }),
     },
   });
 
-  // Re-schedule for all participants (owner + accepted invitees)
   const invitees = await prisma.invitation.findMany({
     where: { eventId, invitationStatus: 'accepted' },
     select: { invitedUserId: true },
@@ -121,8 +137,6 @@ export async function cancelEvent(eventId: string, userId: string) {
   if (!event) throw appError('Event not found', 404);
   if (event.createdBy !== userId) throw appError('Only the event owner can cancel this event', 403);
   if (event.status === 'cancelled') throw appError('Event is already cancelled', 409);
-
-  // Cancel all pending reminders
   await prisma.reminderLog.deleteMany({ where: { eventId, deliveryStatus: 'pending' } });
   return prisma.event.update({ where: { id: eventId }, data: { status: 'cancelled' } });
 }
@@ -131,5 +145,5 @@ export async function deleteEvent(eventId: string, userId: string): Promise<void
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) throw appError('Event not found', 404);
   if (event.createdBy !== userId) throw appError('Only the event owner can delete this event', 403);
-  await prisma.event.delete({ where: { id: eventId } }); // cascades reminder_logs
+  await prisma.event.delete({ where: { id: eventId } });
 }

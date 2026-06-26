@@ -4,6 +4,8 @@ import LoginPage       from './pages/LoginPage';
 import RegisterPage    from './pages/RegisterPage';
 import DashboardPage   from './pages/DashboardPage';
 import CalendarPage    from './pages/CalendarPage';
+import CalendarsPage   from './pages/CalendarsPage';
+import PeoplePage      from './pages/PeoplePage';
 import EventDetailPage from './pages/EventDetailPage';
 import EventFormPage   from './pages/EventFormPage';
 import ProfilePage     from './pages/ProfilePage';
@@ -31,18 +33,21 @@ export default function App() {
       <BrowserRouter>
         <NotificationManager />
         <Routes>
-          <Route path="/login"         element={<PublicRoute><LoginPage /></PublicRoute>} />
-          <Route path="/register"      element={<PublicRoute><RegisterPage /></PublicRoute>} />
-          <Route path="/"              element={<Protected><DashboardPage /></Protected>} />
-          <Route path="/calendar"      element={<Protected><CalendarPage /></Protected>} />
-          <Route path="/events/new"    element={<Protected><EventFormPage /></Protected>} />
-          <Route path="/events/:id"    element={<Protected><EventDetailPage /></Protected>} />
+          <Route path="/login"    element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+
+          <Route path="/"                element={<Protected><DashboardPage /></Protected>} />
+          <Route path="/calendar"        element={<Protected><CalendarPage /></Protected>} />
+          <Route path="/calendars"       element={<Protected><CalendarsPage /></Protected>} />
+          <Route path="/people"          element={<Protected><PeoplePage /></Protected>} />
+          <Route path="/events/new"      element={<Protected><EventFormPage /></Protected>} />
+          <Route path="/events/:id"      element={<Protected><EventDetailPage /></Protected>} />
           <Route path="/events/:id/edit" element={<Protected><EventFormPage /></Protected>} />
-          <Route path="/profile"       element={<Protected><ProfilePage /></Protected>} />
-          <Route path="*"              element={<Navigate to="/" replace />} />
+          <Route path="/profile"         element={<Protected><ProfilePage /></Protected>} />
+
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
-
   );
 }

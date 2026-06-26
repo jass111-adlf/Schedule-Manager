@@ -18,7 +18,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       startDatetime: { gte: from, lte: to },
       OR: [
         { createdBy: req.userId },
-        { invitations: { some: { invitedUserId: req.userId, invitationStatus: 'accepted' } } },
+        { invitations: { some: { invitedUserId: req.userId, invitationStatus: 'accepted' as const } } },
       ],
     });
 
@@ -33,12 +33,17 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       }),
     ]);
 
-    const withStatus = (events: typeof todayRaw) =>
-      events.map(e => ({ ...e, status: deriveEventStatus(e.status, e.endDatetime) }));
+    // Map startDatetime/endDatetime → start/end so the frontend Event interface matches
+    const mapEvent = (e: typeof todayRaw[0]) => ({
+      ...e,
+      start: e.startDatetime.toISOString(),
+      end: e.endDatetime.toISOString(),
+      status: deriveEventStatus(e.status, e.endDatetime),
+    });
 
     successResponse(res, {
-      todayEvents: withStatus(todayRaw),
-      upcomingEvents: withStatus(upcomingRaw),
+      todayEvents:       todayRaw.map(mapEvent),
+      upcomingEvents:    upcomingRaw.map(mapEvent),
       recentInvitations,
     });
   } catch (err) { next(err); }

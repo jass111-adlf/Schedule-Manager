@@ -3,12 +3,15 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env';
 import { errorHandler } from './middleware';
-import authRouter from './modules/auth';
-import usersRouter from './modules/users';
-import eventsRouter from './modules/events/events';
+import authRouter       from './modules/auth';
+import usersRouter      from './modules/users';
+import eventsRouter     from './modules/events/events';
 import invitationsRouter from './modules/invitations';
-import remindersRouter from './modules/reminders';
-import dashboardRouter from './modules/dashboard';
+import remindersRouter  from './modules/reminders';
+import dashboardRouter  from './modules/dashboard';
+import calendarsRouter  from './modules/calendars';
+import friendsRouter    from './modules/friends';
+import eventTypesRouter from './modules/eventTypes';
 
 const app = express();
 
@@ -18,12 +21,15 @@ app.use(cookieParser());
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
-app.use('/api/auth', authRouter);
-app.use('/api/users', usersRouter);
-app.use('/api/events', eventsRouter);
+app.use('/api/auth',        authRouter);
+app.use('/api/users',       usersRouter);
+app.use('/api/events',      eventsRouter);
 app.use('/api/invitations', invitationsRouter);
-app.use('/api/reminders', remindersRouter);
-app.use('/api/dashboard', dashboardRouter);
+app.use('/api/reminders',   remindersRouter);
+app.use('/api/dashboard',   dashboardRouter);
+app.use('/api/calendars',   calendarsRouter);
+app.use('/api/friends',     friendsRouter);
+app.use('/api/event-types', eventTypesRouter);
 
 app.use(errorHandler);
 

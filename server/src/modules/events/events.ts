@@ -14,27 +14,30 @@ const base = z.object({
   startDatetime: z.string().datetime({ offset: true }),
   endDatetime: z.string().datetime({ offset: true }),
   allDay: z.boolean().default(false),
-  visibility: z.enum(['private', 'invited_only', 'public']).default('private'),
+  visibility: z.enum(['private', 'invited_only', 'friends', 'public']).default('private'),
   eventType: z.enum(['work', 'personal', 'family', 'health', 'social', 'other']),
   reminderMinutesBefore: z.number().int().positive().optional(),
   reminderMethod: z.enum(['browser', 'email', 'both']).optional(),
   timezone: z.string().min(1),
   recurrenceType: z.enum(['none', 'daily', 'weekly', 'monthly']).default('none'),
   repeatUntil: z.string().date().optional(),
+  calendarId: z.string().uuid().optional(),
+  customTypeId: z.string().uuid().optional(),
 });
 
 export const createEventSchema = base
   .refine(d => new Date(d.endDatetime) > new Date(d.startDatetime), { message: 'End must be after start', path: ['endDatetime'] })
   .refine(d => d.recurrenceType === 'none' || !!d.repeatUntil, { message: 'repeatUntil required for recurring events', path: ['repeatUntil'] })
-  .refine(d => !d.reminderMinutesBefore || !!d.reminderMethod, { message: 'reminderMethod required when reminderMinutesBefore is set', path: ['reminderMethod'] });
+  .refine(d => !d.reminderMinutesBefore || !!d.reminderMethod, { message: 'reminderMethod required', path: ['reminderMethod'] });
 
 export const updateEventSchema = base.partial()
   .refine(d => !(d.startDatetime && d.endDatetime) || new Date(d.endDatetime!) > new Date(d.startDatetime!), { message: 'End must be after start', path: ['endDatetime'] })
-  .refine(d => !d.reminderMinutesBefore || !!d.reminderMethod, { message: 'reminderMethod required when reminderMinutesBefore is set', path: ['reminderMethod'] });
+  .refine(d => !d.reminderMinutesBefore || !!d.reminderMethod, { message: 'reminderMethod required', path: ['reminderMethod'] });
 
 const rangeQuery = z.object({
   start: z.string().datetime({ offset: true }).optional(),
   end: z.string().datetime({ offset: true }).optional(),
+  calendarId: z.string().uuid().optional(),
 });
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
@@ -48,9 +51,10 @@ router.use(authenticate);
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const q = rangeQuery.safeParse(req.query);
-    const windowStart = q.success && q.data.start ? new Date(q.data.start) : undefined;
-    const windowEnd = q.success && q.data.end ? new Date(q.data.end) : undefined;
-    const events = await svc.listEvents(req.userId, windowStart, windowEnd);
+    const windowStart  = q.success && q.data.start      ? new Date(q.data.start) : undefined;
+    const windowEnd    = q.success && q.data.end        ? new Date(q.data.end)   : undefined;
+    const calendarId   = q.success ? q.data.calendarId : undefined;
+    const events = await svc.listEvents(req.userId, windowStart, windowEnd, calendarId);
     successResponse(res, { events });
   } catch (err) { next(err); }
 });
@@ -86,7 +90,6 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
   } catch (err) { next(err); }
 });
 
-// POST /api/events/:eventId/invitations
 router.post('/:eventId/invitations', validateRequest(inviteUserSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const invitation = await inviteUser(req.params.eventId, req.userId, req.body.userId);

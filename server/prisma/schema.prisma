@@ -1,8 +1,3 @@
-// ============================================================
-// Personal Calendar Manager — Prisma Schema (v2)
-// Database: PostgreSQL
-// ============================================================
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,18 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================
-// ENUMS
-// ============================================================
+// ── Enums ─────────────────────────────────────────────────────
 
-/// Controls who can see an event
 enum Visibility {
   private
   invited_only
+  friends
   public
 }
 
-/// Colour-coding category for an event
 enum EventType {
   work
   personal
@@ -33,20 +25,17 @@ enum EventType {
   other
 }
 
-/// Only stored status — upcoming/completed are derived at query time
 enum EventStatus {
   active
   cancelled
 }
 
-/// How the reminder should be delivered
 enum ReminderMethod {
   browser
   email
   both
 }
 
-/// How often the event repeats
 enum RecurrenceType {
   none
   daily
@@ -54,75 +43,145 @@ enum RecurrenceType {
   monthly
 }
 
-/// Whether a user has responded to an invitation
 enum InvitationStatus {
   pending
   accepted
   declined
 }
 
-/// Delivery state of a single reminder log entry
 enum DeliveryStatus {
   pending
   sent
   failed
 }
 
-// ============================================================
-// MODELS
-// ============================================================
+enum CalendarVis {
+  public
+  private
+  share_only
+}
 
-/// Registered users — owns events and receives invitations/reminders
+enum FriendshipStatus {
+  pending
+  accepted
+}
+
+// ── Models ────────────────────────────────────────────────────
+
 model User {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String   @db.VarChar(100)
-  email         String   @unique @db.VarChar(255)
-  passwordHash  String   @map("password_hash") @db.VarChar(255)
-  createdAt     DateTime @default(now()) @map("created_at")
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String   @db.VarChar(100)
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("created_at")
 
-  // Relations
-  events        Event[]         @relation("EventOwner")
-  invitations   Invitation[]    @relation("InvitedUser")
-  reminderLogs  ReminderLog[]   @relation("ReminderRecipient")
+  events           Event[]           @relation("EventOwner")
+  invitations      Invitation[]      @relation("InvitedUser")
+  reminderLogs     ReminderLog[]     @relation("ReminderRecipient")
+  calendars        Calendar[]
+  calendarShares   CalendarShare[]   @relation("CalendarSharedWith")
+  friendRequests   Friendship[]      @relation("FriendRequests")
+  friendReceived   Friendship[]      @relation("FriendReceived")
+  customEventTypes CustomEventType[]
 
   @@map("users")
 }
 
-/// Calendar events — series-level row; occurrences are expanded virtually at read time
 model Event {
-  id                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdBy             String         @map("created_by") @db.Uuid
-  title                 String         @db.VarChar(255)
-  description           String?        @db.Text
-  location              String?        @db.VarChar(255)
-  startDatetime         DateTime       @map("start_datetime") @db.Timestamptz()
-  endDatetime           DateTime       @map("end_datetime") @db.Timestamptz()
-  allDay                Boolean        @default(false) @map("all_day")
-  visibility            Visibility     @default(private)
-  eventType             EventType      @map("event_type")
-  reminderMinutesBefore Int?           @map("reminder_minutes_before")
+  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdBy             String          @map("created_by") @db.Uuid
+  calendarId            String?         @map("calendar_id") @db.Uuid
+  customTypeId          String?         @map("custom_type_id") @db.Uuid
+  title                 String          @db.VarChar(255)
+  description           String?         @db.Text
+  location              String?         @db.VarChar(255)
+  startDatetime         DateTime        @map("start_datetime") @db.Timestamptz()
+  endDatetime           DateTime        @map("end_datetime") @db.Timestamptz()
+  allDay                Boolean         @default(false) @map("all_day")
+  visibility            Visibility      @default(private)
+  eventType             EventType       @map("event_type")
+  reminderMinutesBefore Int?            @map("reminder_minutes_before")
   reminderMethod        ReminderMethod? @map("reminder_method")
-  timezone              String         @db.VarChar(64)
-  recurrenceType        RecurrenceType @default(none) @map("recurrence_type")
-  repeatUntil           DateTime?      @map("repeat_until") @db.Date
-  status                EventStatus    @default(active)
-  createdAt             DateTime       @default(now()) @map("created_at")
-  updatedAt             DateTime       @updatedAt @map("updated_at")
+  timezone              String          @db.VarChar(64)
+  recurrenceType        RecurrenceType  @default(none) @map("recurrence_type")
+  repeatUntil           DateTime?       @map("repeat_until") @db.Date
+  status                EventStatus     @default(active)
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
 
-  // Relations
-  owner         User           @relation("EventOwner", fields: [createdBy], references: [id], onDelete: Cascade)
-  invitations   Invitation[]   @relation("EventInvitations")
-  reminderLogs  ReminderLog[]  @relation("EventReminderLogs")
+  owner        User             @relation("EventOwner", fields: [createdBy], references: [id], onDelete: Cascade)
+  calendar     Calendar?        @relation(fields: [calendarId], references: [id], onDelete: SetNull)
+  customType   CustomEventType? @relation(fields: [customTypeId], references: [id], onDelete: SetNull)
+  invitations  Invitation[]     @relation("EventInvitations")
+  reminderLogs ReminderLog[]    @relation("EventReminderLogs")
 
-  // Indexes
   @@index([createdBy])
   @@index([startDatetime, endDatetime])
   @@index([status])
+  @@index([calendarId])
 
   @@map("events")
 }
 
-/// Tracks which users have been invited to which events and their response
+model Calendar {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String      @map("user_id") @db.Uuid
+  name       String      @db.VarChar(100)
+  color      String      @default("#3b82f6") @db.VarChar(20)
+  visibility CalendarVis @default(private)
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  owner  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events Event[]
+  shares CalendarShare[]
+
+  @@index([userId])
+  @@map("calendars")
+}
+
+model CalendarShare {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  calendarId   String   @map("calendar_id") @db.Uuid
+  sharedWithId String   @map("shared_with_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  calendar   Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  sharedWith User     @relation("CalendarSharedWith", fields: [sharedWithId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarId, sharedWithId])
+  @@map("calendar_shares")
+}
+
+model Friendship {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  requesterId String           @map("requester_id") @db.Uuid
+  addresseeId String           @map("addressee_id") @db.Uuid
+  status      FriendshipStatus @default(pending)
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  requester User @relation("FriendRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("FriendReceived", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+  @@index([requesterId, status])
+  @@map("friendships")
+}
+
+model CustomEventType {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String   @db.VarChar(50)
+  color     String   @default("#6b7280") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events Event[]
+
+  @@unique([userId, name])
+  @@map("custom_event_types")
+}
+
 model Invitation {
   id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId          String           @map("event_id") @db.Uuid
@@ -130,44 +189,31 @@ model Invitation {
   invitationStatus InvitationStatus @default(pending) @map("invitation_status")
   invitedAt        DateTime         @default(now()) @map("invited_at")
 
-  // Relations
   event       Event @relation("EventInvitations", fields: [eventId], references: [id], onDelete: Cascade)
   invitedUser User  @relation("InvitedUser", fields: [invitedUserId], references: [id], onDelete: Cascade)
 
-  // A user can only be invited once per event
   @@unique([eventId, invitedUserId])
-
-  // Indexes
   @@index([invitedUserId])
   @@index([eventId])
 
   @@map("invitations")
 }
 
-/// Tracks individual reminder delivery attempts per user per occurrence
-/// Needed to: (1) avoid duplicate sends on recurring events, (2) track per-recipient state
 model ReminderLog {
-  id                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eventId             String         @map("event_id") @db.Uuid
-  userId              String         @map("user_id") @db.Uuid
-  /// Which specific occurrence this reminder belongs to (= startDatetime for non-recurring events)
-  occurrenceDatetime  DateTime       @map("occurrence_datetime") @db.Timestamptz()
-  /// Snapshot of reminder_method at schedule time — insulates log from future event edits
-  method              ReminderMethod
-  /// = occurrence_datetime - reminder_minutes_before; what the cron job polls on
-  scheduledFor        DateTime       @map("scheduled_for") @db.Timestamptz()
-  deliveryStatus      DeliveryStatus @default(pending) @map("delivery_status")
-  sentAt              DateTime?      @map("sent_at")
-  createdAt           DateTime       @default(now()) @map("created_at")
+  id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId            String         @map("event_id") @db.Uuid
+  userId             String         @map("user_id") @db.Uuid
+  occurrenceDatetime DateTime       @map("occurrence_datetime") @db.Timestamptz()
+  method             ReminderMethod
+  scheduledFor       DateTime       @map("scheduled_for") @db.Timestamptz()
+  deliveryStatus     DeliveryStatus @default(pending) @map("delivery_status")
+  sentAt             DateTime?      @map("sent_at")
+  createdAt          DateTime       @default(now()) @map("created_at")
 
-  // Relations
   event Event @relation("EventReminderLogs", fields: [eventId], references: [id], onDelete: Cascade)
   user  User  @relation("ReminderRecipient", fields: [userId], references: [id], onDelete: Cascade)
 
-  // Prevent duplicate sends for the same user/occurrence/method combination
   @@unique([eventId, userId, occurrenceDatetime, method])
-
-  // Primary query pattern for the cron worker: "what reminders are due right now?"
   @@index([scheduledFor, deliveryStatus])
 
   @@map("reminder_logs")
