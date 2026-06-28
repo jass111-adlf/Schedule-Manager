@@ -4,9 +4,9 @@
   "description": "Personal Calendar Manager — Express + Prisma backend",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "cd ../client && npm run build && cd ../server && tsc",
     "start": "node dist/server.js",
+    "dev": "ts-node-dev src/server.ts",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:reset": "prisma migrate reset",

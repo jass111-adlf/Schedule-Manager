@@ -4,9 +4,9 @@ import LoginPage       from './pages/LoginPage';
 import RegisterPage    from './pages/RegisterPage';
 import DashboardPage   from './pages/DashboardPage';
 import CalendarPage    from './pages/CalendarPage';
-import CalendarsPage   from './pages/CalendarsPage';
-import PeoplePage      from './pages/PeoplePage';
-import EventDetailPage from './pages/EventDetailPage';
+import PeoplePage         from './pages/PeoplePage';
+import UserCalendarPage   from './pages/UserCalendarPage';
+import EventDetailPage    from './pages/EventDetailPage';
 import EventFormPage   from './pages/EventFormPage';
 import ProfilePage     from './pages/ProfilePage';
 import NotificationManager from './components/NotificationManager';
@@ -38,8 +38,8 @@ export default function App() {
 
           <Route path="/"                element={<Protected><DashboardPage /></Protected>} />
           <Route path="/calendar"        element={<Protected><CalendarPage /></Protected>} />
-          <Route path="/calendars"       element={<Protected><CalendarsPage /></Protected>} />
-          <Route path="/people"          element={<Protected><PeoplePage /></Protected>} />
+          <Route path="/people"            element={<Protected><PeoplePage /></Protected>} />
+          <Route path="/people/:userId"   element={<Protected><UserCalendarPage /></Protected>} />
           <Route path="/events/new"      element={<Protected><EventFormPage /></Protected>} />
           <Route path="/events/:id"      element={<Protected><EventDetailPage /></Protected>} />
           <Route path="/events/:id/edit" element={<Protected><EventFormPage /></Protected>} />

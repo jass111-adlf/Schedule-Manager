@@ -31,7 +31,10 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
         addressee: { select: { id: true, name: true, email: true } },
       },
     });
-    const friends = rows.map(r => r.requesterId === req.userId ? r.addressee : r.requester);
+    const friends = rows.map(r => ({
+      friendshipId: r.id,
+      ...(r.requesterId === req.userId ? r.addressee : r.requester),
+    }));
     successResponse(res, { friends });
   } catch (err) { next(err); }
 });

@@ -1,7 +1,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { eventsApi, calendarsApi, eventTypesApi, Calendar, CustomEventType } from '../api';
+import { eventsApi, eventTypesApi, CustomEventType } from '../api';
 
 const toLocal = (iso: string) => {
   const d = new Date(iso);
@@ -46,10 +46,6 @@ export default function EventFormPage() {
   const [recurrence, setRecurrence] = useState('none');
   const [repeatUntil, setRepeatUntil] = useState('');
 
-  // Calendar
-  const [calendarId, setCalendarId] = useState('');
-  const [calendars, setCalendars]   = useState<Calendar[]>([]);
-
   // Event type
   const [eventType, setEventType]       = useState('personal');
   const [customTypeId, setCustomTypeId] = useState('');
@@ -68,10 +64,7 @@ export default function EventFormPage() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   useEffect(() => {
-    Promise.all([calendarsApi.list(), eventTypesApi.list()]).then(([cals, types]) => {
-      setCalendars(cals.data.data.calendars);
-      setCustomTypes(types.data.data.types);
-    }).catch(() => {});
+    eventTypesApi.list().then(r => setCustomTypes(r.data.data.types)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -87,7 +80,6 @@ export default function EventFormPage() {
       setVisibility(e.visibility);
       setRecurrence(e.recurrenceType);
       setRepeatUntil(e.repeatUntil?.slice(0, 10) ?? '');
-      setCalendarId(e.calendarId ?? '');
       if (e.customTypeId) { setCustomTypeId(e.customTypeId); setEventType('other'); }
       else { setEventType(e.eventType); }
       const rm = e.reminderMinutesBefore?.toString() ?? '';
@@ -118,7 +110,6 @@ export default function EventFormPage() {
       recurrenceType: recurrence,
       ...(description && { description }),
       ...(location   && { location }),
-      ...(calendarId && { calendarId }),
       ...(customTypeId && { customTypeId }),
       ...(recurrence !== 'none' && repeatUntil && { repeatUntil }),
       ...(resolvedMin && { reminderMinutesBefore: parseInt(resolvedMin), reminderMethod: remindMethod }),
@@ -225,15 +216,6 @@ export default function EventFormPage() {
                 <option value="public">Public</option>
               </select>
             </div>
-            {calendars.length > 0 && (
-              <div>
-                <label className={lbl}>Calendar</label>
-                <select value={calendarId} onChange={e => setCalendarId(e.target.value)} className={input}>
-                  <option value="">— Uncategorised —</option>
-                  {calendars.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-            )}
           </div>
 
           <div>

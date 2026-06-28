@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { dashboardApi, invitationsApi, Event, Invitation } from '../api';
 
+function sortEvents(events: Event[]): Event[] {
+  return [...events].sort((a, b) => {
+    if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+    return new Date(a.start).getTime() - new Date(b.start).getTime();
+  });
+}
+
 const TYPE_COLOR: Record<string, string> = {
   work: 'bg-blue-500', personal: 'bg-purple-500', family: 'bg-green-500',
   health: 'bg-red-500', social: 'bg-yellow-400', other: 'bg-gray-400',
@@ -53,7 +60,7 @@ export default function DashboardPage() {
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Today</h2>
           {data.todayEvents.length === 0
             ? <p className="text-sm text-gray-400">Nothing today.</p>
-            : <div className="space-y-2">{data.todayEvents.map(e => <EventCard key={e.id + e.start} event={e} onClick={() => navigate(`/events/${e.id}`)} />)}</div>
+            : <div className="space-y-2">{sortEvents(data.todayEvents).map(e => <EventCard key={e.id + e.start} event={e} onClick={() => navigate(`/events/${e.id}`)} />)}</div>
           }
           <button onClick={() => navigate('/events/new')} className="mt-3 text-xs text-blue-600 hover:underline">+ New event</button>
         </section>
@@ -62,7 +69,7 @@ export default function DashboardPage() {
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Next 7 days</h2>
           {data.upcomingEvents.length === 0
             ? <p className="text-sm text-gray-400">Nothing upcoming.</p>
-            : <div className="space-y-2">{data.upcomingEvents.map(e => <EventCard key={e.id + e.start} event={e} onClick={() => navigate(`/events/${e.id}`)} />)}</div>
+            : <div className="space-y-2">{sortEvents(data.upcomingEvents).map(e => <EventCard key={e.id + e.start} event={e} onClick={() => navigate(`/events/${e.id}`)} />)}</div>
           }
         </section>
 

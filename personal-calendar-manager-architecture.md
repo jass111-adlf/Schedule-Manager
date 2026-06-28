@@ -1,414 +1,299 @@
-# Personal Calendar Manager — Architecture Design
+# Personal Calendar Manager — Architecture Blueprint
 
-This document is the design blueprint for the app, before any code is written. It covers the database schema, folder structure, API routes, entity relationships, authentication flow, and user flows. Once you've reviewed and approved this, we move to implementation, screen by screen.
+> Use this document in a fresh chat to cross-question and learn the project.
+> Paste it at the start and ask anything about the design, decisions, or code.
 
 ---
 
-## 1. Tech Stack Summary
+## 1. Tech Stack
 
 | Layer | Choice |
 |---|---|
-| Frontend | React + TypeScript (Vite) |
-| Styling | Tailwind CSS |
+| Frontend | React + TypeScript (Vite), Tailwind CSS |
 | Backend | Node.js + Express + TypeScript |
 | ORM | Prisma |
 | Database | PostgreSQL |
-| Auth | JWT (access token) + bcrypt for password hashing |
+| Auth | JWT in HttpOnly cookie (Secure, SameSite=Lax), bcrypt |
 
 ---
 
-## 2. Database Schema
+## 2. Database Schema (current Prisma models)
 
-### 2.1 `users`
-
+### `users`
 | Column | Type | Notes |
 |---|---|---|
-| id | UUID (PK) | default `gen_random_uuid()` |
-| name | VARCHAR(100) | not null |
-| email | VARCHAR(255) | unique, not null |
-| password_hash | VARCHAR(255) | not null, bcrypt hash |
-| created_at | TIMESTAMP | default `now()` |
+| id | UUID PK | `gen_random_uuid()` |
+| name | VARCHAR(100) | |
+| email | VARCHAR(255) | unique |
+| password_hash | VARCHAR(255) | bcrypt |
+| created_at | TIMESTAMPTZ | |
 
-### 2.2 `events`
-
+### `events`
 | Column | Type | Notes |
 |---|---|---|
-| id | UUID (PK) | default `gen_random_uuid()` |
-| created_by | UUID (FK → users.id) | not null, `ON DELETE CASCADE` |
-| title | VARCHAR(255) | not null |
+| id | UUID PK | |
+| created_by | UUID FK → users | cascade delete |
+| custom_type_id | UUID FK → custom_event_types | nullable, set null on delete |
+| title | VARCHAR(255) | |
 | description | TEXT | nullable |
 | location | VARCHAR(255) | nullable |
-| start_datetime | TIMESTAMPTZ | not null |
-| end_datetime | TIMESTAMPTZ | not null |
-| all_day | BOOLEAN | default `false` |
-| visibility | ENUM(`private`, `invited_only`, `public`) | default `private` |
-| event_type | ENUM(`work`, `personal`, `family`, `health`, `social`, `other`) | maps to a colour in the UI |
-| reminder_minutes_before | INTEGER | nullable, e.g. 10, 30, 60, 1440 |
-| timezone | VARCHAR(64) | IANA tz string, e.g. `Europe/London` |
-| status | ENUM(`upcoming`, `completed`, `cancelled`) | default `upcoming` |
-| created_at | TIMESTAMP | default `now()` |
-| updated_at | TIMESTAMP | auto-updated |
+| start_datetime | TIMESTAMPTZ | |
+| end_datetime | TIMESTAMPTZ | |
+| all_day | BOOLEAN | |
+| visibility | ENUM | `private`, `invited_only`, `friends`, `public` |
+| event_type | ENUM | `work`, `personal`, `family`, `health`, `social`, `other` |
+| reminder_minutes_before | INTEGER | nullable |
+| reminder_method | ENUM | `browser`, `email`, `both` — nullable |
+| timezone | VARCHAR(64) | IANA string e.g. `Asia/Kolkata` |
+| recurrence_type | ENUM | `none`, `daily`, `weekly`, `monthly` |
+| repeat_until | DATE | nullable; required when recurrence_type ≠ none |
+| status | ENUM | only `active` or `cancelled` stored; `upcoming`/`completed` derived at runtime |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | auto-updated |
 
-**Indexes:** `created_by`, `(start_datetime, end_datetime)` for range queries, `status`.
+> **No calendarId column.** Every user has exactly one implicit calendar — their events.
 
-### 2.3 `invitations`
-
+### `invitations`
 | Column | Type | Notes |
 |---|---|---|
-| id | UUID (PK) | default `gen_random_uuid()` |
-| event_id | UUID (FK → events.id) | not null, `ON DELETE CASCADE` |
-| invited_user_id | UUID (FK → users.id) | not null, `ON DELETE CASCADE` |
-| invitation_status | ENUM(`pending`, `accepted`, `declined`) | default `pending` |
-| invited_at | TIMESTAMP | default `now()` |
+| id | UUID PK | |
+| event_id | UUID FK → events | cascade delete |
+| invited_user_id | UUID FK → users | cascade delete |
+| invitation_status | ENUM | `pending`, `accepted`, `declined` |
+| invited_at | TIMESTAMPTZ | |
+| @@unique([event_id, invited_user_id]) | | prevents duplicate invites |
 
-**Unique constraint:** `(event_id, invited_user_id)` — a user can only be invited once per event.
-**Indexes:** `invited_user_id` (for "my invitations" queries), `event_id`.
+### `friendships`
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| requester_id | UUID FK → users | cascade delete |
+| addressee_id | UUID FK → users | cascade delete |
+| status | ENUM | `pending`, `accepted` |
+| created_at | TIMESTAMPTZ | |
+| @@unique([requester_id, addressee_id]) | | one row per pair regardless of direction |
 
-> `status` calculation note: rather than a background job, `status` on `events` is best treated as **derived** for "upcoming/completed" (computed from `end_datetime` vs now at query time) and only **stored** for the explicit `cancelled` state. This avoids stale data. We'll decide together when we implement — flagging it now so it's not a surprise later.
+### `custom_event_types`
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| user_id | UUID FK → users | cascade delete |
+| name | VARCHAR(50) | |
+| color | VARCHAR(20) | hex e.g. `#6b7280` |
+| created_at | TIMESTAMPTZ | |
+| @@unique([user_id, name]) | | |
 
----
-
-## 3. Entity Relationships
-
-```mermaid
-erDiagram
-    USERS ||--o{ EVENTS : "creates"
-    USERS ||--o{ INVITATIONS : "is invited"
-    EVENTS ||--o{ INVITATIONS : "has"
-
-    USERS {
-        uuid id PK
-        string name
-        string email
-        string password_hash
-        timestamp created_at
-    }
-    EVENTS {
-        uuid id PK
-        uuid created_by FK
-        string title
-        text description
-        string location
-        timestamptz start_datetime
-        timestamptz end_datetime
-        boolean all_day
-        enum visibility
-        enum event_type
-        int reminder_minutes_before
-        string timezone
-        enum status
-        timestamp created_at
-        timestamp updated_at
-    }
-    INVITATIONS {
-        uuid id PK
-        uuid event_id FK
-        uuid invited_user_id FK
-        enum invitation_status
-        timestamp invited_at
-    }
-```
-
-**Relationship summary:**
-- One **user** → many **events** (as creator/owner).
-- One **user** → many **invitations** (as invitee).
-- One **event** → many **invitations** (one per invited user).
-- `events.visibility = public` is a hint for future "shareable calendar" features, but for v1, visibility mainly controls whether non-invited users can ever see the event at all (private = only owner, invited_only = owner + invitees, public = anyone with the link — stubbed for now).
+### `reminder_logs`
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| event_id | UUID FK → events | cascade delete |
+| user_id | UUID FK → users | cascade delete |
+| occurrence_datetime | TIMESTAMPTZ | which recurrence this reminder is for |
+| method | ENUM | `browser`, `email`, `both` |
+| scheduled_for | TIMESTAMPTZ | when to fire (`start - reminderMinutesBefore`) |
+| delivery_status | ENUM | `pending`, `sent`, `failed` |
+| sent_at | TIMESTAMPTZ | nullable |
+| @@unique([event_id, user_id, occurrence_datetime, method]) | | deduplication key |
 
 ---
 
-## 4. Folder Structure
+## 3. Visibility Rules
 
-### 4.1 Backend (`/server`)
+Four visibility types control who can see an event when viewing another user's profile:
 
+| Visibility | Who can see full details |
+|---|---|
+| `private` | Nobody except the owner — shows as a grey "Busy" block to everyone else |
+| `invited_only` | Only users with an accepted invitation |
+| `friends` | Accepted friends of the owner |
+| `public` | Everyone |
+
+When viewing someone's profile calendar, the API returns ALL upcoming events but with limited info for ones the viewer can't qualify for:
+- **Visible** → `{ visible: true, title, start, end, eventType, location, ... }`
+- **Hidden** → `{ visible: false, start, end }` — rendered as a grey "Busy" block in the UI
+
+---
+
+## 4. Recurrence Logic
+
+Recurring events store ONE row in the DB. Occurrences are generated virtually at read time by `generateOccurrences()` in `server/src/lib/recurrence.ts`.
+
+Why: simpler DB, no duplication, cancellation of the base event cancels all occurrences.
+
+Tradeoff: can't cancel individual occurrences (only the entire series).
+
+---
+
+## 5. Friendship Model
+
+Friendship is bidirectional but stored as ONE row (requester + addressee). To check if A and B are friends, query both directions:
 ```
-server/
-├── prisma/
-│   ├── schema.prisma
-│   └── migrations/
-├── src/
-│   ├── config/
-│   │   └── env.ts                # loads & validates env vars
-│   ├── modules/
-│   │   ├── auth/
-│   │   │   ├── auth.controller.ts
-│   │   │   ├── auth.service.ts
-│   │   │   ├── auth.routes.ts
-│   │   │   └── auth.validation.ts
-│   │   ├── users/
-│   │   │   ├── users.controller.ts
-│   │   │   ├── users.service.ts
-│   │   │   ├── users.routes.ts
-│   │   │   └── users.validation.ts
-│   │   ├── events/
-│   │   │   ├── events.controller.ts
-│   │   │   ├── events.service.ts
-│   │   │   ├── events.routes.ts
-│   │   │   └── events.validation.ts
-│   │   └── invitations/
-│   │       ├── invitations.controller.ts
-│   │       ├── invitations.service.ts
-│   │       ├── invitations.routes.ts
-│   │       └── invitations.validation.ts
-│   ├── middleware/
-│   │   ├── authenticate.ts       # verifies JWT, attaches req.user
-│   │   ├── errorHandler.ts
-│   │   └── validateRequest.ts    # generic zod/Joi validation middleware
-│   ├── lib/
-│   │   ├── prisma.ts             # Prisma client singleton
-│   │   └── jwt.ts                # sign/verify helpers
-│   ├── utils/
-│   │   └── apiResponse.ts        # consistent success/error response shape
-│   ├── app.ts                    # express app, middleware wiring
-│   └── server.ts                 # entrypoint, starts the listener
-├── .env.example
-├── package.json
-└── tsconfig.json
+WHERE (requesterId = A AND addresseeId = B) OR (requesterId = B AND addresseeId = A)
 ```
 
-This is a **feature-module** structure (auth, users, events, invitations each self-contained), which scales better than splitting purely by technical layer once the app grows.
+States: `pending` → `accepted`. Delete the row to remove/decline.
 
-### 4.2 Frontend (`/client`)
+---
+
+## 6. Reminders Architecture
+
+Two delivery paths for one reminder:
+
+**Browser notifications** — frontend polls `GET /api/reminders/due` every 30 seconds. If any `pending` reminders with method `browser`/`both` come back, the browser fires a `Notification`. Then it calls `PATCH /api/reminders/:id/acknowledge` to mark it `sent`.
+
+**Email notifications** — a cron job in the server (node-cron, runs every minute) queries `reminder_logs` where `scheduledFor <= now AND deliveryStatus = pending AND method IN (email, both)`. It sends email via nodemailer and marks the log `sent` or `failed`.
+
+Deduplication: the `@@unique([eventId, userId, occurrenceDatetime, method])` constraint prevents duplicate reminder rows.
+
+---
+
+## 7. Authentication
+
+- `POST /api/auth/register` → bcrypt hash, create user, issue JWT
+- `POST /api/auth/login` → timing-safe login (always runs bcrypt.compare even if user not found, using dummy hash)
+- JWT stored in HttpOnly cookie (Secure, SameSite=Lax) — not accessible from JavaScript
+- `authenticate` middleware on all protected routes reads and verifies the cookie
+
+---
+
+## 8. Folder Structure
 
 ```
-client/
-├── src/
-│   ├── api/
-│   │   ├── axiosClient.ts        # base axios instance, attaches JWT, handles 401
-│   │   ├── auth.api.ts
-│   │   ├── events.api.ts
-│   │   └── invitations.api.ts
-│   ├── components/
-│   │   ├── calendar/
-│   │   │   ├── MonthView.tsx
-│   │   │   ├── DayView.tsx
-│   │   │   └── EventPill.tsx
-│   │   ├── events/
-│   │   │   ├── EventFormModal.tsx
-│   │   │   ├── EventDetailPanel.tsx
-│   │   │   └── ReminderSelect.tsx
-│   │   ├── invitations/
-│   │   │   ├── InviteUserSearch.tsx
-│   │   │   └── InvitationCard.tsx
-│   │   ├── dashboard/
-│   │   │   ├── TodayEvents.tsx
-│   │   │   ├── UpcomingEvents.tsx
-│   │   │   └── RecentInvitations.tsx
-│   │   └── ui/                   # generic buttons, inputs, modal shell, etc.
-│   ├── pages/
-│   │   ├── LoginPage.tsx
-│   │   ├── RegisterPage.tsx
-│   │   ├── DashboardPage.tsx
-│   │   ├── CalendarPage.tsx
-│   │   ├── EventDetailPage.tsx
-│   │   └── ProfilePage.tsx
-│   ├── context/
-│   │   └── AuthContext.tsx       # current user, login/logout, token storage
-│   ├── hooks/
-│   │   ├── useEvents.ts
-│   │   ├── useInvitations.ts
-│   │   └── useAuth.ts
-│   ├── routes/
-│   │   ├── AppRoutes.tsx
-│   │   └── ProtectedRoute.tsx
-│   ├── types/
-│   │   ├── event.types.ts
-│   │   ├── user.types.ts
-│   │   └── invitation.types.ts
-│   ├── utils/
-│   │   └── dateHelpers.ts
-│   ├── App.tsx
-│   └── main.tsx
-├── .env.example
-├── tailwind.config.ts
-└── package.json
+personal calendar/
+├── server/
+│   ├── prisma/
+│   │   ├── schema.prisma             — all models/enums
+│   │   ├── migrations/
+│   │   │   ├── 20260625000000_init/  — base tables
+│   │   │   └── 20260626000001_social_features/ — friendships, custom types, friends visibility
+│   │   └── MIGRATIONS.md
+│   └── src/
+│       ├── config/env.ts             — Zod-validated env vars
+│       ├── lib/
+│       │   ├── prisma.ts             — PrismaClient singleton
+│       │   ├── recurrence.ts         — generateOccurrences()
+│       │   ├── mailer.ts             — nodemailer (no-op if SMTP_USER empty)
+│       │   └── utils.ts              — successResponse, errorResponse, deriveEventStatus
+│       ├── middleware.ts             — authenticate, validateRequest, errorHandler
+│       ├── app.ts                    — Express setup, route mounting
+│       ├── server.ts                 — listen + startReminderWorker
+│       └── modules/
+│           ├── auth.ts               — /api/auth
+│           ├── users.ts              — /api/users (search, profile events)
+│           ├── events/
+│           │   ├── events.ts         — /api/events (CRUD, Zod validation)
+│           │   └── events.service.ts — DB logic (listEvents, createEvent, etc.)
+│           ├── invitations.ts        — /api/invitations
+│           ├── friends.ts            — /api/friends (list with friendshipId, requests, send, accept, remove)
+│           ├── eventTypes.ts         — /api/event-types (custom types CRUD)
+│           ├── reminders.ts          — /api/reminders + cron worker
+│           └── dashboard.ts          — /api/dashboard
+│
+└── client/
+    ├── vite.config.ts                — proxy /api → localhost:4000
+    └── src/
+        ├── api.ts                    — axios instance + all typed API functions
+        ├── auth.tsx                  — AuthContext, AuthProvider, useAuth
+        ├── App.tsx                   — BrowserRouter, routes (no /calendars route)
+        ├── pages/
+        │   ├── LoginPage.tsx
+        │   ├── RegisterPage.tsx
+        │   ├── DashboardPage.tsx     — today events, upcoming, pending invitations
+        │   ├── CalendarPage.tsx      — month + day view, no calendar filter
+        │   ├── EventDetailPage.tsx   — view/cancel/delete, invite users
+        │   ├── EventFormPage.tsx     — create/edit, custom type picker, reminder selector
+        │   ├── PeoplePage.tsx        — friends list (remove + view profile), search, requests
+        │   ├── UserCalendarPage.tsx  — /people/:userId — another user's calendar with grey blocks
+        │   └── ProfilePage.tsx       — user settings
+        └── components/
+            ├── Layout.tsx            — nav: Dashboard | Calendar | People
+            └── NotificationManager.tsx — polls reminders/due, fires Notification API
 ```
 
 ---
 
-## 5. API Routes
+## 9. API Routes Summary
 
-All routes prefixed with `/api`. Protected routes require `Authorization: Bearer <token>`.
-
-### Auth
-
-| Method | Route | Description | Protected |
+| Method | Path | Auth | Description |
 |---|---|---|---|
-| POST | `/api/auth/register` | Create account | No |
-| POST | `/api/auth/login` | Login, returns JWT | No |
-| POST | `/api/auth/logout` | Invalidate session client-side | Yes |
-
-### Users
-
-| Method | Route | Description | Protected |
-|---|---|---|---|
-| GET | `/api/users/me` | Get current user's profile | Yes |
-| GET | `/api/users/search?email=` | Search users by email (for invites) | Yes |
-
-### Events
-
-| Method | Route | Description | Protected |
-|---|---|---|---|
-| GET | `/api/events` | List events for current user (owned + invited-accepted), supports `?start=&end=` range filter | Yes |
-| GET | `/api/events/:id` | Get single event detail | Yes |
-| POST | `/api/events` | Create event | Yes |
-| PUT | `/api/events/:id` | Update event (owner only) | Yes |
-| DELETE | `/api/events/:id` | Delete event (owner only) | Yes |
-
-### Invitations
-
-| Method | Route | Description | Protected |
-|---|---|---|---|
-| POST | `/api/events/:id/invitations` | Invite a user to an event | Yes |
-| GET | `/api/invitations/received` | List invitations sent to current user | Yes |
-| PATCH | `/api/invitations/:id/accept` | Accept invitation | Yes |
-| PATCH | `/api/invitations/:id/decline` | Decline invitation | Yes |
-
-### Dashboard (convenience aggregate)
-
-| Method | Route | Description | Protected |
-|---|---|---|---|
-| GET | `/api/dashboard` | Returns today's events, upcoming events, and recent invitations in one payload | Yes |
+| POST | /api/auth/register | No | Create account |
+| POST | /api/auth/login | No | Login, set JWT cookie |
+| POST | /api/auth/logout | No | Clear cookie |
+| GET | /api/users/me | Yes | Current user |
+| GET | /api/users/search?q= | Yes | Search users, includes friendship status |
+| GET | /api/users/:id/events | Yes | Another user's profile calendar (visible events full, hidden as grey blocks) |
+| GET | /api/events | Yes | My events (with optional ?start=&end= window) |
+| GET | /api/events/:id | Yes | Single event + invitations |
+| POST | /api/events | Yes | Create event |
+| PUT | /api/events/:id | Yes | Update event (owner only) |
+| PATCH | /api/events/:id/cancel | Yes | Cancel event (owner only) |
+| DELETE | /api/events/:id | Yes | Delete event (owner only) |
+| POST | /api/events/:id/invitations | Yes | Invite a user to an event |
+| GET | /api/invitations/received | Yes | My incoming invitations |
+| PATCH | /api/invitations/:id/accept | Yes | Accept invitation |
+| PATCH | /api/invitations/:id/decline | Yes | Decline invitation |
+| GET | /api/friends | Yes | My accepted friends (includes friendshipId for removal) |
+| GET | /api/friends/requests | Yes | Incoming pending friend requests |
+| POST | /api/friends/request | Yes | Send friend request |
+| PATCH | /api/friends/:id/accept | Yes | Accept friend request (addressee only) |
+| DELETE | /api/friends/:id | Yes | Unfriend or decline (either party) |
+| GET | /api/event-types | Yes | My custom event types |
+| POST | /api/event-types | Yes | Create custom type |
+| PUT | /api/event-types/:id | Yes | Update custom type |
+| DELETE | /api/event-types/:id | Yes | Delete custom type |
+| GET | /api/reminders/due | Yes | Pending browser/both reminders for me |
+| PATCH | /api/reminders/:id/acknowledge | Yes | Mark reminder sent |
+| GET | /api/dashboard | Yes | Today events, upcoming events, recent invitations |
 
 ---
 
-## 6. Authentication Flow
+## 10. People Tab Behaviour
 
-**Strategy:** stateless JWT, stored in an HttpOnly cookie (more secure than `localStorage` against XSS) with a short expiry, e.g. 7 days.
+The "People" tab (`/people`) has three sections:
 
-```mermaid
-sequenceDiagram
-    participant U as User (Browser)
-    participant F as Frontend (React)
-    participant B as Backend (Express)
-    participant DB as PostgreSQL
+1. **Incoming requests** — accept or decline
+2. **Friends list** — each friend card shows "View profile" + "Remove" button
+3. **Search** — find users by name/email, send friend request, view their profile
 
-    U->>F: Submits registration form
-    F->>B: POST /api/auth/register
-    B->>B: Hash password (bcrypt)
-    B->>DB: Insert user row
-    DB-->>B: User created
-    B->>B: Sign JWT (userId, exp)
-    B-->>F: Set HttpOnly cookie + user object
-    F-->>U: Redirect to Dashboard
+"View profile" navigates to `/people/:userId` — a dedicated `UserCalendarPage` that shows the target user's calendar in the same month/day view as the main calendar. Visibility rules:
 
-    U->>F: Submits login form
-    F->>B: POST /api/auth/login
-    B->>DB: Find user by email
-    B->>B: bcrypt.compare(password, hash)
-    alt valid credentials
-        B->>B: Sign JWT
-        B-->>F: Set HttpOnly cookie + user object
-        F-->>U: Redirect to Dashboard
-    else invalid credentials
-        B-->>F: 401 Unauthorized
-        F-->>U: Show error message
-    end
+- Events you **qualify** to see → rendered as colored event pills/cards (same as own calendar)
+- Events you **don't qualify** to see → rendered as grey "Busy" blocks with start/end time only, 🔒 icon
 
-    Note over F,B: On every subsequent request
-    F->>B: Request with cookie automatically attached
-    B->>B: authenticate middleware verifies JWT
-    alt token valid
-        B-->>F: Proceeds, req.user populated
-    else token missing/expired
-        B-->>F: 401 Unauthorized
-        F->>F: Redirect to /login
-    end
+The page shows "Friend view" or "Public view" badge in the header so the viewer knows what they can see. The backend `GET /api/users/:id/events?start=&end=` accepts a date range and is called on each month navigation, exactly like the main events API.
 
-    U->>F: Clicks logout
-    F->>B: POST /api/auth/logout
-    B-->>F: Clears cookie
-    F-->>U: Redirect to /login
-```
+## 11. Event Display Sort Order (all views)
 
-**Key decisions worth confirming with you before coding:**
-- Cookie-based JWT (HttpOnly, `SameSite=Lax`, `Secure` in production) rather than `localStorage`, to reduce XSS token-theft risk. This means CORS config needs `credentials: true` on both ends.
-- `authenticate` middleware on the backend rejects with `401` if token missing/invalid/expired — no silent refresh in v1 (user just logs in again). We can add refresh tokens later if needed.
-- Passwords hashed with bcrypt, salt rounds = 10–12.
+All event lists — day view, month view pills, dashboard today/upcoming — sort by:
+1. **All-day events first** (at the top)
+2. **Timed events sorted earliest → latest** by start time
 
 ---
 
-## 7. User Flow Diagrams
+## 12. Important Implementation Notes
 
-### 7.1 Registration → Login → Dashboard
+**Prisma stale client**: After any schema change, you MUST run `npx prisma migrate dev` before the server will see new tables/columns. The client is regenerated automatically during migrate.
 
-```mermaid
-flowchart TD
-    A[Landing / Login Page] -->|No account| B[Register Page]
-    B -->|Submit valid form| C[Account created + JWT issued]
-    C --> D[Dashboard]
-    A -->|Has account| E[Enter email + password]
-    E -->|Valid| C
-    E -->|Invalid| A
-    D --> F[Today's Events]
-    D --> G[Upcoming Events]
-    D --> H[Recent Invitations]
+**Event status**: Only `active`/`cancelled` stored in DB. `upcoming`/`completed` derived at runtime by `deriveEventStatus(status, endDatetime)` — if cancelled: cancelled; if endDatetime < now: completed; else: upcoming.
+
+**Friendship direction**: Always query both `(requesterId=A, addresseeId=B)` AND `(requesterId=B, addresseeId=A)`. Never assume which user sent the request.
+
+**Timing-safe login**: Even when the email doesn't exist, bcrypt.compare runs against a dummy hash. This prevents timing attacks that reveal whether an email is registered.
+
+**SMTP is optional**: If `SMTP_USER` env var is not set, mailer.ts no-ops with a console log. Browser reminders still work.
+
+**Running the project**:
+```bash
+# Terminal 1 — backend
+cd server && npm run dev
+
+# Terminal 2 — frontend  
+cd client && npm run dev
 ```
+Frontend on :5173, backend on :4000. Vite proxies /api/* → :4000.
 
-### 7.2 Creating an Event
-
-```mermaid
-flowchart TD
-    A[Calendar Page] --> B[Click 'New Event' or click empty time slot]
-    B --> C[Event Form Modal opens]
-    C --> D[Fill title, description, location, time, all-day toggle, visibility, type, reminder, timezone]
-    D --> E{Validation passes?}
-    E -->|No| C
-    E -->|Yes| F[POST /api/events]
-    F --> G[Event saved, status = upcoming]
-    G --> H[Modal closes, calendar refreshes, new event visible]
+**Running migration** (after any schema.prisma change):
+```bash
+cd server && npx prisma migrate dev --name <description>
 ```
-
-### 7.3 Inviting & Responding to Invitations
-
-```mermaid
-flowchart TD
-    A[Event Detail Page - Owner view] --> B[Click 'Invite People']
-    B --> C[Search user by email]
-    C --> D[Select user, send invite]
-    D --> E[POST /api/events/:id/invitations]
-    E --> F[Invitation row created, status = pending]
-
-    F --> G[Invited user's Dashboard]
-    G --> H[Recent Invitations section shows pending invite]
-    H --> I{User decision}
-    I -->|Accept| J[PATCH /accept → status = accepted]
-    I -->|Decline| K[PATCH /decline → status = declined]
-    J --> L[Event now appears on invitee's calendar]
-    K --> M[Event does not appear on invitee's calendar]
-```
-
-### 7.4 Viewing & Editing an Event
-
-```mermaid
-flowchart TD
-    A[Calendar Page] --> B[Click on event pill]
-    B --> C[Event Detail Page]
-    C --> D{Is current user the owner?}
-    D -->|Yes| E[Show Edit / Delete / Invite People buttons]
-    D -->|No, invited only| F[Show Accept / Decline if pending, else read-only details]
-    E -->|Edit| G[Open Event Form Modal pre-filled]
-    G --> H[PUT /api/events/:id]
-    E -->|Delete| I[Confirm dialog]
-    I --> J[DELETE /api/events/:id]
-    J --> K[Redirect to Calendar Page]
-```
-
----
-
-## 8. What's Next
-
-Once you confirm this design works for you, the build order I'd suggest is:
-
-1. **Backend foundation** — Prisma schema, migrations, Express app skeleton, env config.
-2. **Auth module** — register, login, logout, JWT middleware.
-3. **Events module** — CRUD + validation.
-4. **Invitations module** — invite, accept, decline, search users.
-5. **Dashboard aggregate endpoint.**
-6. **Frontend foundation** — routing, auth context, protected routes, Tailwind setup.
-7. **Auth pages** — Login, Register.
-8. **Calendar pages** — Month view, Day view.
-9. **Event modal + detail page.**
-10. **Invitations UI + Dashboard page.**
-
-Let me know if you'd like any part of this design changed — for example, a different auth storage strategy, additional event fields, or recurring events support (not in the current requirements, but common in calendar apps) — before we start writing code.

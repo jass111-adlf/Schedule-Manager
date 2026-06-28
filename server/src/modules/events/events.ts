@@ -21,7 +21,6 @@ const base = z.object({
   timezone: z.string().min(1),
   recurrenceType: z.enum(['none', 'daily', 'weekly', 'monthly']).default('none'),
   repeatUntil: z.string().date().optional(),
-  calendarId: z.string().uuid().optional(),
   customTypeId: z.string().uuid().optional(),
 });
 
@@ -37,7 +36,6 @@ export const updateEventSchema = base.partial()
 const rangeQuery = z.object({
   start: z.string().datetime({ offset: true }).optional(),
   end: z.string().datetime({ offset: true }).optional(),
-  calendarId: z.string().uuid().optional(),
 });
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
@@ -51,10 +49,9 @@ router.use(authenticate);
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const q = rangeQuery.safeParse(req.query);
-    const windowStart  = q.success && q.data.start      ? new Date(q.data.start) : undefined;
-    const windowEnd    = q.success && q.data.end        ? new Date(q.data.end)   : undefined;
-    const calendarId   = q.success ? q.data.calendarId : undefined;
-    const events = await svc.listEvents(req.userId, windowStart, windowEnd, calendarId);
+    const windowStart = q.success && q.data.start ? new Date(q.data.start) : undefined;
+    const windowEnd   = q.success && q.data.end   ? new Date(q.data.end)   : undefined;
+    const events = await svc.listEvents(req.userId, windowStart, windowEnd);
     successResponse(res, { events });
   } catch (err) { next(err); }
 });

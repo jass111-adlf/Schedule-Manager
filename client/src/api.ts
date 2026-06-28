@@ -32,7 +32,7 @@ export interface Event {
   reminderMinutesBefore: number | null; reminderMethod: string | null;
   timezone: string; recurrenceType: string; repeatUntil: string | null;
   createdBy: string; status: 'upcoming' | 'completed' | 'cancelled';
-  calendarId: string | null; customTypeId: string | null;
+  customTypeId: string | null;
   customType: { name: string; color: string } | null;
 }
 
@@ -42,15 +42,14 @@ export interface Invitation {
   event: { id: string; title: string; owner: { id: string; name: string; email: string } };
 }
 
-export interface Calendar {
-  id: string; name: string; color: string;
-  visibility: 'public' | 'private' | 'share_only'; createdAt: string;
-  shares?: { id: string; sharedWith: { id: string; name: string; email: string }; createdAt: string }[];
-}
-
 export interface CustomEventType {
   id: string; name: string; color: string; createdAt: string;
 }
+
+// A profile event: visible = full details, visible = false = grey busy block
+export type ProfileEvent =
+  | { id: string; visible: true; title: string; description: string | null; location: string | null; start: string; end: string; allDay: boolean; eventType: string; customType: { name: string; color: string } | null; visibility: string; status: string }
+  | { id: string; visible: false; start: string; end: string; allDay: boolean };
 
 // ── Auth ──────────────────────────────────────────────────────
 
@@ -67,15 +66,15 @@ export const authApi = {
 export const usersApi = {
   me: () => api.get<{ data: { user: User } }>('/users/me'),
   search: (q: string) => api.get<{ data: { users: User[] } }>('/users/search', { params: { q } }),
-  getCalendars: (userId: string) =>
-    api.get<{ data: { calendars: Calendar[]; isFriend: boolean } }>(`/users/${userId}/calendars`),
+  getProfile: (userId: string, start?: string, end?: string) =>
+    api.get<{ data: { events: ProfileEvent[]; isFriend: boolean } }>(`/users/${userId}/events`, { params: { start, end } }),
 };
 
 // ── Events ────────────────────────────────────────────────────
 
 export const eventsApi = {
-  list: (start?: string, end?: string, calendarId?: string) =>
-    api.get<{ data: { events: Event[] } }>('/events', { params: { start, end, calendarId } }),
+  list: (start?: string, end?: string) =>
+    api.get<{ data: { events: Event[] } }>('/events', { params: { start, end } }),
   get: (id: string) => api.get<{ data: { event: any } }>(`/events/${id}`),
   create: (data: Record<string, unknown>) => api.post<{ data: { event: Event } }>('/events', data),
   update: (id: string, data: Record<string, unknown>) => api.put<{ data: { event: Event } }>(`/events/${id}`, data),
@@ -105,26 +104,10 @@ export const dashboardApi = {
   get: () => api.get<{ data: { todayEvents: Event[]; upcomingEvents: Event[]; recentInvitations: Invitation[] } }>('/dashboard'),
 };
 
-// ── Calendars ─────────────────────────────────────────────────
-
-export const calendarsApi = {
-  list: () => api.get<{ data: { calendars: Calendar[] } }>('/calendars'),
-  sharedWithMe: () => api.get<{ data: { calendars: (Calendar & { owner?: User })[] } }>('/calendars/shared-with-me'),
-  create: (data: { name: string; color: string; visibility: string }) =>
-    api.post<{ data: { calendar: Calendar } }>('/calendars', data),
-  update: (id: string, data: Partial<{ name: string; color: string; visibility: string }>) =>
-    api.put<{ data: { calendar: Calendar } }>(`/calendars/${id}`, data),
-  delete: (id: string) => api.delete(`/calendars/${id}`),
-  share: (calendarId: string, userId: string) =>
-    api.post(`/calendars/${calendarId}/shares`, { userId }),
-  revokeShare: (calendarId: string, userId: string) =>
-    api.delete(`/calendars/${calendarId}/shares/${userId}`),
-};
-
 // ── Friends ───────────────────────────────────────────────────
 
 export const friendsApi = {
-  list: () => api.get<{ data: { friends: User[] } }>('/friends'),
+  list: () => api.get<{ data: { friends: (User & { friendshipId: string })[] } }>('/friends'),
   requests: () => api.get<{ data: { requests: { id: string; requester: User; createdAt: string }[] } }>('/friends/requests'),
   sendRequest: (userId: string) => api.post('/friends/request', { userId }),
   accept: (id: string) => api.patch(`/friends/${id}/accept`),

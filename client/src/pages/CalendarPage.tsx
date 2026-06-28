@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { eventsApi, calendarsApi, Event, Calendar } from '../api';
+import { eventsApi, Event } from '../api';
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -66,7 +66,12 @@ function MonthView({ year, month, events, onDayClick, onEventClick }: {
       <div className="grid grid-cols-7 border-l border-t border-gray-200">
         {cells.map((date, i) => {
           const dayEvents = date
-            ? events.filter(e => sameDay(new Date(e.start ?? e.startDatetime), date))
+            ? events
+                .filter(e => sameDay(new Date(e.start ?? e.startDatetime), date))
+                .sort((a, b) => {
+                  if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+                  return new Date(a.start).getTime() - new Date(b.start).getTime();
+                })
             : [];
           const isToday = date ? sameDay(date, today) : false;
           return (
@@ -101,7 +106,11 @@ function DayView({ date, events, onEventClick }: {
   const dateStr = date.toDateString();
   const dayEvents = events
     .filter(e => sameDay(new Date(e.start ?? (e as any).startDatetime), date))
-    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    .sort((a, b) => {
+      // All-day events at top, then timed events sorted earliest → latest
+      if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+      return new Date(a.start).getTime() - new Date(b.start).getTime();
+    });
 
   return (
     <div key={dateStr}>
@@ -141,24 +150,17 @@ export default function CalendarPage() {
   const [selected, setSelected] = useState<Date>(today);
   const [events, setEvents]   = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  const [calendars, setCalendars] = useState<Calendar[]>([]);
-  const [filterCal, setFilterCal] = useState<string>('all');
-
-  // Load user's calendars once
-  useEffect(() => {
-    calendarsApi.list().then(r => setCalendars(r.data.data.calendars)).catch(() => {});
-  }, []);
 
   // Fetch events for the visible month
   useEffect(() => {
     const start = new Date(year, month, 1).toISOString();
     const end   = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
     setLoading(true);
-    eventsApi.list(start, end, filterCal !== 'all' ? filterCal : undefined)
+    eventsApi.list(start, end)
       .then(r => setEvents(r.data.data.events))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [year, month, filterCal]);
+  }, [year, month]);
 
   // Month navigation
   function prevMonth() { month === 0 ? (setYear(y => y - 1), setMonth(11)) : setMonth(m => m - 1); }
@@ -203,20 +205,6 @@ export default function CalendarPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Calendar filter */}
-          {calendars.length > 0 && (
-            <select
-              value={filterCal}
-              onChange={e => setFilterCal(e.target.value)}
-              className="text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All calendars</option>
-              {calendars.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          )}
-
           <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
             <button onClick={() => setView('month')} className={`px-3 py-1.5 ${view === 'month' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Month</button>
             <button

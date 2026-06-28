@@ -16,7 +16,7 @@ export interface EventOccurrence {
   reminderMinutesBefore: number | null; reminderMethod: string | null;
   timezone: string; recurrenceType: string; repeatUntil: Date | null;
   createdBy: string; createdAt: Date; updatedAt: Date;
-  calendarId: string | null; customTypeId: string | null;
+  customTypeId: string | null;
   customType: { name: string; color: string } | null;
   start: Date; end: Date; status: 'upcoming' | 'completed' | 'cancelled';
 }
@@ -25,14 +25,12 @@ export async function listEvents(
   userId: string,
   windowStart?: Date,
   windowEnd?: Date,
-  calendarId?: string,
 ): Promise<EventOccurrence[]> {
   const events = await prisma.event.findMany({
     where: {
-      ...(calendarId ? { calendarId } : {}),
       OR: [
         { createdBy: userId },
-        { invitations: { some: { invitedUserId: userId, invitationStatus: 'accepted' } } },
+        { invitations: { some: { invitedUserId: userId, invitationStatus: 'accepted' as const } } },
       ],
     },
     include: { customType: { select: { name: true, color: true } } },
@@ -47,7 +45,7 @@ export async function listEvents(
         reminderMinutesBefore: event.reminderMinutesBefore, reminderMethod: event.reminderMethod,
         timezone: event.timezone, recurrenceType: event.recurrenceType, repeatUntil: event.repeatUntil,
         createdBy: event.createdBy, createdAt: event.createdAt, updatedAt: event.updatedAt,
-        calendarId: event.calendarId, customTypeId: event.customTypeId, customType: event.customType,
+        customTypeId: event.customTypeId, customType: event.customType,
         start: occ.start, end: occ.end, status: deriveEventStatus(event.status, occ.end),
       });
     }
@@ -76,22 +74,21 @@ export async function getEventById(eventId: string, userId: string) {
 export async function createEvent(userId: string, input: CreateEventInput) {
   const event = await prisma.event.create({
     data: {
-      createdBy: userId,
-      title: input.title,
-      description: input.description ?? null,
-      location: input.location ?? null,
-      startDatetime: new Date(input.startDatetime),
-      endDatetime: new Date(input.endDatetime),
-      allDay: input.allDay,
-      visibility: input.visibility,
-      eventType: input.eventType,
+      createdBy:            userId,
+      title:                input.title,
+      description:          input.description ?? null,
+      location:             input.location ?? null,
+      startDatetime:        new Date(input.startDatetime),
+      endDatetime:          new Date(input.endDatetime),
+      allDay:               input.allDay,
+      visibility:           input.visibility,
+      eventType:            input.eventType,
       reminderMinutesBefore: input.reminderMinutesBefore ?? null,
-      reminderMethod: input.reminderMethod ?? null,
-      timezone: input.timezone,
-      recurrenceType: input.recurrenceType,
-      repeatUntil: input.repeatUntil ? new Date(input.repeatUntil) : null,
-      calendarId: input.calendarId ?? null,
-      customTypeId: input.customTypeId ?? null,
+      reminderMethod:       input.reminderMethod ?? null,
+      timezone:             input.timezone,
+      recurrenceType:       input.recurrenceType,
+      repeatUntil:          input.repeatUntil ? new Date(input.repeatUntil) : null,
+      customTypeId:         input.customTypeId ?? null,
     },
   });
   await scheduleReminders(event, [userId]);
@@ -106,21 +103,20 @@ export async function updateEvent(eventId: string, userId: string, input: Update
   const updated = await prisma.event.update({
     where: { id: eventId },
     data: {
-      ...(input.title              !== undefined && { title: input.title }),
-      ...(input.description        !== undefined && { description: input.description }),
-      ...(input.location           !== undefined && { location: input.location }),
-      ...(input.startDatetime      !== undefined && { startDatetime: new Date(input.startDatetime) }),
-      ...(input.endDatetime        !== undefined && { endDatetime: new Date(input.endDatetime) }),
-      ...(input.allDay             !== undefined && { allDay: input.allDay }),
-      ...(input.visibility         !== undefined && { visibility: input.visibility }),
-      ...(input.eventType          !== undefined && { eventType: input.eventType }),
+      ...(input.title               !== undefined && { title: input.title }),
+      ...(input.description         !== undefined && { description: input.description }),
+      ...(input.location            !== undefined && { location: input.location }),
+      ...(input.startDatetime       !== undefined && { startDatetime: new Date(input.startDatetime) }),
+      ...(input.endDatetime         !== undefined && { endDatetime: new Date(input.endDatetime) }),
+      ...(input.allDay              !== undefined && { allDay: input.allDay }),
+      ...(input.visibility          !== undefined && { visibility: input.visibility }),
+      ...(input.eventType           !== undefined && { eventType: input.eventType }),
       ...(input.reminderMinutesBefore !== undefined && { reminderMinutesBefore: input.reminderMinutesBefore }),
-      ...(input.reminderMethod     !== undefined && { reminderMethod: input.reminderMethod }),
-      ...(input.timezone           !== undefined && { timezone: input.timezone }),
-      ...(input.recurrenceType     !== undefined && { recurrenceType: input.recurrenceType }),
-      ...(input.repeatUntil        !== undefined && { repeatUntil: input.repeatUntil ? new Date(input.repeatUntil) : null }),
-      ...(input.calendarId         !== undefined && { calendarId: input.calendarId ?? null }),
-      ...(input.customTypeId       !== undefined && { customTypeId: input.customTypeId ?? null }),
+      ...(input.reminderMethod      !== undefined && { reminderMethod: input.reminderMethod }),
+      ...(input.timezone            !== undefined && { timezone: input.timezone }),
+      ...(input.recurrenceType      !== undefined && { recurrenceType: input.recurrenceType }),
+      ...(input.repeatUntil         !== undefined && { repeatUntil: input.repeatUntil ? new Date(input.repeatUntil) : null }),
+      ...(input.customTypeId        !== undefined && { customTypeId: input.customTypeId ?? null }),
     },
   });
 

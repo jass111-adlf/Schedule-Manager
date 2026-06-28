@@ -55,12 +55,6 @@ enum DeliveryStatus {
   failed
 }
 
-enum CalendarVis {
-  public
-  private
-  share_only
-}
-
 enum FriendshipStatus {
   pending
   accepted
@@ -78,8 +72,6 @@ model User {
   events           Event[]           @relation("EventOwner")
   invitations      Invitation[]      @relation("InvitedUser")
   reminderLogs     ReminderLog[]     @relation("ReminderRecipient")
-  calendars        Calendar[]
-  calendarShares   CalendarShare[]   @relation("CalendarSharedWith")
   friendRequests   Friendship[]      @relation("FriendRequests")
   friendReceived   Friendship[]      @relation("FriendReceived")
   customEventTypes CustomEventType[]
@@ -90,7 +82,6 @@ model User {
 model Event {
   id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdBy             String          @map("created_by") @db.Uuid
-  calendarId            String?         @map("calendar_id") @db.Uuid
   customTypeId          String?         @map("custom_type_id") @db.Uuid
   title                 String          @db.VarChar(255)
   description           String?         @db.Text
@@ -110,7 +101,6 @@ model Event {
   updatedAt             DateTime        @updatedAt @map("updated_at")
 
   owner        User             @relation("EventOwner", fields: [createdBy], references: [id], onDelete: Cascade)
-  calendar     Calendar?        @relation(fields: [calendarId], references: [id], onDelete: SetNull)
   customType   CustomEventType? @relation(fields: [customTypeId], references: [id], onDelete: SetNull)
   invitations  Invitation[]     @relation("EventInvitations")
   reminderLogs ReminderLog[]    @relation("EventReminderLogs")
@@ -118,38 +108,8 @@ model Event {
   @@index([createdBy])
   @@index([startDatetime, endDatetime])
   @@index([status])
-  @@index([calendarId])
 
   @@map("events")
-}
-
-model Calendar {
-  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId     String      @map("user_id") @db.Uuid
-  name       String      @db.VarChar(100)
-  color      String      @default("#3b82f6") @db.VarChar(20)
-  visibility CalendarVis @default(private)
-  createdAt  DateTime    @default(now()) @map("created_at")
-
-  owner  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  events Event[]
-  shares CalendarShare[]
-
-  @@index([userId])
-  @@map("calendars")
-}
-
-model CalendarShare {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  calendarId   String   @map("calendar_id") @db.Uuid
-  sharedWithId String   @map("shared_with_id") @db.Uuid
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  calendar   Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
-  sharedWith User     @relation("CalendarSharedWith", fields: [sharedWithId], references: [id], onDelete: Cascade)
-
-  @@unique([calendarId, sharedWithId])
-  @@map("calendar_shares")
 }
 
 model Friendship {
