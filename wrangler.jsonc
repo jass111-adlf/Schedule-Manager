@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "personal calendar",
+  "name": "personal-calendar",
   "compatibility_date": "2026-06-29",
   "observability": {
     "enabled": true
