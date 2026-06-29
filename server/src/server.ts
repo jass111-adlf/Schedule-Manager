@@ -10,10 +10,11 @@ async function main() {
 
   startReminderWorker();
   app.listen(env.PORT, () => {
-    console.log(`🚀  Server running on http://localhost:${env.PORT}`);
-    console.log(`    Environment : ${env.NODE_ENV}`);
-    console.log(`    Client origin: ${env.CLIENT_ORIGIN}`);
-  });
+  const where = env.NODE_ENV === "production" ? "" : ` (http://localhost:${env.PORT})`;
+  console.log(`🚀  Server running on port ${env.PORT}${where}`);
+  console.log(`    Environment : ${env.NODE_ENV}`);
+  console.log(`    Client origin: ${env.CLIENT_ORIGIN}`);
+});
 }
 
 main().catch((err) => {
