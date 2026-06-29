@@ -30,12 +30,6 @@ enum EventStatus {
   cancelled
 }
 
-enum ReminderMethod {
-  browser
-  email
-  both
-}
-
 enum RecurrenceType {
   none
   daily
@@ -47,12 +41,6 @@ enum InvitationStatus {
   pending
   accepted
   declined
-}
-
-enum DeliveryStatus {
-  pending
-  sent
-  failed
 }
 
 enum FriendshipStatus {
@@ -71,7 +59,6 @@ model User {
 
   events           Event[]           @relation("EventOwner")
   invitations      Invitation[]      @relation("InvitedUser")
-  reminderLogs     ReminderLog[]     @relation("ReminderRecipient")
   friendRequests   Friendship[]      @relation("FriendRequests")
   friendReceived   Friendship[]      @relation("FriendReceived")
   customEventTypes CustomEventType[]
@@ -80,30 +67,27 @@ model User {
 }
 
 model Event {
-  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdBy             String          @map("created_by") @db.Uuid
-  customTypeId          String?         @map("custom_type_id") @db.Uuid
-  title                 String          @db.VarChar(255)
-  description           String?         @db.Text
-  location              String?         @db.VarChar(255)
-  startDatetime         DateTime        @map("start_datetime") @db.Timestamptz()
-  endDatetime           DateTime        @map("end_datetime") @db.Timestamptz()
-  allDay                Boolean         @default(false) @map("all_day")
-  visibility            Visibility      @default(private)
-  eventType             EventType       @map("event_type")
-  reminderMinutesBefore Int?            @map("reminder_minutes_before")
-  reminderMethod        ReminderMethod? @map("reminder_method")
-  timezone              String          @db.VarChar(64)
-  recurrenceType        RecurrenceType  @default(none) @map("recurrence_type")
-  repeatUntil           DateTime?       @map("repeat_until") @db.Date
-  status                EventStatus     @default(active)
-  createdAt             DateTime        @default(now()) @map("created_at")
-  updatedAt             DateTime        @updatedAt @map("updated_at")
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdBy      String         @map("created_by") @db.Uuid
+  customTypeId   String?        @map("custom_type_id") @db.Uuid
+  title          String         @db.VarChar(255)
+  description    String?        @db.Text
+  location       String?        @db.VarChar(255)
+  startDatetime  DateTime       @map("start_datetime") @db.Timestamptz()
+  endDatetime    DateTime       @map("end_datetime") @db.Timestamptz()
+  allDay         Boolean        @default(false) @map("all_day")
+  visibility     Visibility     @default(private)
+  eventType      EventType      @map("event_type")
+  timezone       String         @db.VarChar(64)
+  recurrenceType RecurrenceType @default(none) @map("recurrence_type")
+  repeatUntil    DateTime?      @map("repeat_until") @db.Date
+  status         EventStatus    @default(active)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
 
-  owner        User             @relation("EventOwner", fields: [createdBy], references: [id], onDelete: Cascade)
-  customType   CustomEventType? @relation(fields: [customTypeId], references: [id], onDelete: SetNull)
-  invitations  Invitation[]     @relation("EventInvitations")
-  reminderLogs ReminderLog[]    @relation("EventReminderLogs")
+  owner      User             @relation("EventOwner", fields: [createdBy], references: [id], onDelete: Cascade)
+  customType CustomEventType? @relation(fields: [customTypeId], references: [id], onDelete: SetNull)
+  invitations Invitation[]    @relation("EventInvitations")
 
   @@index([createdBy])
   @@index([startDatetime, endDatetime])
@@ -157,24 +141,4 @@ model Invitation {
   @@index([eventId])
 
   @@map("invitations")
-}
-
-model ReminderLog {
-  id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eventId            String         @map("event_id") @db.Uuid
-  userId             String         @map("user_id") @db.Uuid
-  occurrenceDatetime DateTime       @map("occurrence_datetime") @db.Timestamptz()
-  method             ReminderMethod
-  scheduledFor       DateTime       @map("scheduled_for") @db.Timestamptz()
-  deliveryStatus     DeliveryStatus @default(pending) @map("delivery_status")
-  sentAt             DateTime?      @map("sent_at")
-  createdAt          DateTime       @default(now()) @map("created_at")
-
-  event Event @relation("EventReminderLogs", fields: [eventId], references: [id], onDelete: Cascade)
-  user  User  @relation("ReminderRecipient", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([eventId, userId, occurrenceDatetime, method])
-  @@index([scheduledFor, deliveryStatus])
-
-  @@map("reminder_logs")
 }

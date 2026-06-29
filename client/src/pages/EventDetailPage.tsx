@@ -110,12 +110,6 @@ export default function EventDetailPage() {
                 <p className="text-gray-800 capitalize">{event.recurrenceType} until {event.repeatUntil?.slice(0, 10)}</p>
               </div>
             )}
-            {event.reminderMinutesBefore && (
-              <div>
-                <p className="text-xs text-gray-500 mb-0.5">Reminder</p>
-                <p className="text-gray-800">{event.reminderMinutesBefore} min · {event.reminderMethod}</p>
-              </div>
-            )}
           </div>
 
           {event.description && (

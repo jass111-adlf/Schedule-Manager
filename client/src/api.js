@@ -40,11 +40,6 @@ export const invitationsApi = {
     accept: (id) => api.patch(`/invitations/${id}/accept`),
     decline: (id) => api.patch(`/invitations/${id}/decline`),
 };
-// ── Reminders ─────────────────────────────────────────────────
-export const remindersApi = {
-    due: () => api.get('/reminders/due'),
-    acknowledge: (id) => api.patch(`/reminders/${id}/acknowledge`),
-};
 // ── Dashboard ─────────────────────────────────────────────────
 export const dashboardApi = {
     get: () => api.get('/dashboard'),

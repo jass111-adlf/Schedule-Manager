@@ -24,40 +24,27 @@ const BUILTIN_TYPES = [
   { id: 'other',    name: 'Other',    color: '#9ca3af' },
 ];
 
-const STANDARD_REMINDERS = [
-  { label: '10 min before', value: '10' },
-  { label: '30 min before', value: '30' },
-  { label: '1 hour before', value: '60' },
-  { label: '1 day before',  value: '1440' },
-];
-
 export default function EventFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEdit = !!id;
 
-  const [title, setTitle]           = useState('');
+  const [title, setTitle]             = useState('');
   const [description, setDescription] = useState('');
-  const [location, setLocation]     = useState('');
-  const [start, setStart]           = useState(nowLocal);
-  const [end, setEnd]               = useState(endLocal);
-  const [allDay, setAllDay]         = useState(false);
-  const [visibility, setVisibility] = useState('private');
-  const [recurrence, setRecurrence] = useState('none');
+  const [location, setLocation]       = useState('');
+  const [start, setStart]             = useState(nowLocal);
+  const [end, setEnd]                 = useState(endLocal);
+  const [allDay, setAllDay]           = useState(false);
+  const [visibility, setVisibility]   = useState('private');
+  const [recurrence, setRecurrence]   = useState('none');
   const [repeatUntil, setRepeatUntil] = useState('');
 
-  // Event type
   const [eventType, setEventType]       = useState('personal');
   const [customTypeId, setCustomTypeId] = useState('');
   const [customTypes, setCustomTypes]   = useState<CustomEventType[]>([]);
   const [showNewType, setShowNewType]   = useState(false);
   const [newTypeName, setNewTypeName]   = useState('');
   const [newTypeColor, setNewTypeColor] = useState('#6b7280');
-
-  // Reminder
-  const [remindMin, setRemindMin]     = useState('');    // standard value or 'custom'
-  const [customMin, setCustomMin]     = useState('');    // free-text custom minutes
-  const [remindMethod, setRemindMethod] = useState('browser');
 
   const [error, setError]   = useState('');
   const [saving, setSaving] = useState(false);
@@ -82,12 +69,6 @@ export default function EventFormPage() {
       setRepeatUntil(e.repeatUntil?.slice(0, 10) ?? '');
       if (e.customTypeId) { setCustomTypeId(e.customTypeId); setEventType('other'); }
       else { setEventType(e.eventType); }
-      const rm = e.reminderMinutesBefore?.toString() ?? '';
-      const isStd = STANDARD_REMINDERS.some(o => o.value === rm);
-      if (!rm)       { setRemindMin(''); }
-      else if (isStd) { setRemindMin(rm); }
-      else           { setRemindMin('custom'); setCustomMin(rm); }
-      setRemindMethod(e.reminderMethod ?? 'browser');
     }).catch(() => navigate('/calendar'));
   }, [id, isEdit, navigate]);
 
@@ -102,17 +83,15 @@ export default function EventFormPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault(); setError(''); setSaving(true);
-    const resolvedMin = remindMin === 'custom' ? customMin : remindMin;
     const payload: Record<string, unknown> = {
       title, timezone: tz,
       startDatetime: toISO(start), endDatetime: toISO(end),
       allDay, visibility, eventType,
       recurrenceType: recurrence,
-      ...(description && { description }),
-      ...(location   && { location }),
+      ...(description  && { description }),
+      ...(location     && { location }),
       ...(customTypeId && { customTypeId }),
       ...(recurrence !== 'none' && repeatUntil && { repeatUntil }),
-      ...(resolvedMin && { reminderMinutesBefore: parseInt(resolvedMin), reminderMethod: remindMethod }),
     };
     try {
       isEdit ? await eventsApi.update(id!, payload) : await eventsApi.create(payload);
@@ -155,7 +134,6 @@ export default function EventFormPage() {
             All day
           </label>
 
-          {/* Event type */}
           <div>
             <label className={lbl}>Event type</label>
             <div className="flex flex-wrap gap-2 mb-2">
@@ -202,20 +180,18 @@ export default function EventFormPage() {
 
             <div className="flex items-center gap-1.5 mt-1.5">
               <span className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedColor }} />
-              <span className="text-xs text-gray-500">Calendar color for this event</span>
+              <span className="text-xs text-gray-500">Color for this event</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={lbl}>Visibility</label>
-              <select value={visibility} onChange={e => setVisibility(e.target.value)} className={input}>
-                <option value="private">Private</option>
-                <option value="invited_only">Invited only</option>
-                <option value="friends">Friends</option>
-                <option value="public">Public</option>
-              </select>
-            </div>
+          <div>
+            <label className={lbl}>Visibility</label>
+            <select value={visibility} onChange={e => setVisibility(e.target.value)} className={input}>
+              <option value="private">Private</option>
+              <option value="invited_only">Invited only</option>
+              <option value="friends">Friends</option>
+              <option value="public">Public</option>
+            </select>
           </div>
 
           <div>
@@ -246,34 +222,9 @@ export default function EventFormPage() {
             )}
           </div>
 
-          {/* Reminder */}
-          <div>
-            <label className={lbl}>Reminder</label>
-            <div className="grid grid-cols-2 gap-3">
-              <select value={remindMin} onChange={e => { setRemindMin(e.target.value); setCustomMin(''); }} className={input}>
-                <option value="">None</option>
-                {STANDARD_REMINDERS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                <option value="custom">Custom…</option>
-              </select>
-              {remindMin && (
-                <select value={remindMethod} onChange={e => setRemindMethod(e.target.value)} className={input}>
-                  <option value="browser">Browser</option>
-                  <option value="email">Email</option>
-                  <option value="both">Both</option>
-                </select>
-              )}
-            </div>
-            {remindMin === 'custom' && (
-              <div className="mt-2">
-                <input type="number" min={1} placeholder="Minutes before event" value={customMin}
-                  onChange={e => setCustomMin(e.target.value)} className={input} />
-              </div>
-            )}
-          </div>
-
           <div className="flex gap-3 pt-2">
             <button type="submit" disabled={saving} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-              {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create event'}
+              {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create event'}
             </button>
             <button type="button" onClick={() => navigate(-1)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
               Cancel

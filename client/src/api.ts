@@ -31,7 +31,6 @@ export interface Event {
   id: string; title: string; description: string | null; location: string | null;
   start: string; end: string; allDay: boolean;
   visibility: string; eventType: string;
-  reminderMinutesBefore: number | null; reminderMethod: string | null;
   timezone: string; recurrenceType: string; repeatUntil: string | null;
   createdBy: string; status: 'upcoming' | 'completed' | 'cancelled';
   customTypeId: string | null;
@@ -91,13 +90,6 @@ export const invitationsApi = {
   received: () => api.get<{ data: { invitations: Invitation[] } }>('/invitations/received'),
   accept:  (id: string) => api.patch(`/invitations/${id}/accept`),
   decline: (id: string) => api.patch(`/invitations/${id}/decline`),
-};
-
-// ── Reminders ─────────────────────────────────────────────────
-
-export const remindersApi = {
-  due: () => api.get<{ data: { reminders: { id: string; event: { id: string; title: string } }[] } }>('/reminders/due'),
-  acknowledge: (id: string) => api.patch(`/reminders/${id}/acknowledge`),
 };
 
 // ── Dashboard ─────────────────────────────────────────────────

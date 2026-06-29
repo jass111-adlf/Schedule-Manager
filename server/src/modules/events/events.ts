@@ -16,8 +16,6 @@ const base = z.object({
   allDay: z.boolean().default(false),
   visibility: z.enum(['private', 'invited_only', 'friends', 'public']).default('private'),
   eventType: z.enum(['work', 'personal', 'family', 'health', 'social', 'other']),
-  reminderMinutesBefore: z.number().int().positive().optional(),
-  reminderMethod: z.enum(['browser', 'email', 'both']).optional(),
   timezone: z.string().min(1),
   recurrenceType: z.enum(['none', 'daily', 'weekly', 'monthly']).default('none'),
   repeatUntil: z.string().date().optional(),
@@ -26,12 +24,10 @@ const base = z.object({
 
 export const createEventSchema = base
   .refine(d => new Date(d.endDatetime) > new Date(d.startDatetime), { message: 'End must be after start', path: ['endDatetime'] })
-  .refine(d => d.recurrenceType === 'none' || !!d.repeatUntil, { message: 'repeatUntil required for recurring events', path: ['repeatUntil'] })
-  .refine(d => !d.reminderMinutesBefore || !!d.reminderMethod, { message: 'reminderMethod required', path: ['reminderMethod'] });
+  .refine(d => d.recurrenceType === 'none' || !!d.repeatUntil, { message: 'repeatUntil required for recurring events', path: ['repeatUntil'] });
 
 export const updateEventSchema = base.partial()
-  .refine(d => !(d.startDatetime && d.endDatetime) || new Date(d.endDatetime!) > new Date(d.startDatetime!), { message: 'End must be after start', path: ['endDatetime'] })
-  .refine(d => !d.reminderMinutesBefore || !!d.reminderMethod, { message: 'reminderMethod required', path: ['reminderMethod'] });
+  .refine(d => !(d.startDatetime && d.endDatetime) || new Date(d.endDatetime!) > new Date(d.startDatetime!), { message: 'End must be after start', path: ['endDatetime'] });
 
 const rangeQuery = z.object({
   start: z.string().datetime({ offset: true }).optional(),

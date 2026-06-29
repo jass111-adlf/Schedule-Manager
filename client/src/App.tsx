@@ -9,8 +9,6 @@ import UserCalendarPage   from './pages/UserCalendarPage';
 import EventDetailPage    from './pages/EventDetailPage';
 import EventFormPage   from './pages/EventFormPage';
 import ProfilePage     from './pages/ProfilePage';
-import NotificationManager from './components/NotificationManager';
-
 const Spinner = () => (
   <div className="min-h-screen flex items-center justify-center text-gray-500 text-sm">Loading…</div>
 );
@@ -31,7 +29,6 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <NotificationManager />
         <Routes>
           <Route path="/login"    element={<PublicRoute><LoginPage /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />

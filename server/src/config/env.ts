@@ -18,11 +18,6 @@ const envSchema = z.object({
 
   CLIENT_ORIGIN: z.string().url().default('http://localhost:5173'),
 
-  SMTP_HOST: z.string().default('sandbox.smtp.mailtrap.io'),
-  SMTP_PORT: z.coerce.number().default(2525),
-  SMTP_USER: z.string().default(''),
-  SMTP_PASS: z.string().default(''),
-  SMTP_FROM: z.string().default('Calendar App <no-reply@calendar.local>'),
 });
 
 const parsed = envSchema.safeParse(process.env);
