@@ -9,11 +9,11 @@
 
 | Layer | Choice |
 |---|---|
-| Frontend | React + TypeScript (Vite), Tailwind CSS |
+| Frontend | React + TypeScript (Vite 6), Tailwind CSS |
 | Backend | Node.js + Express + TypeScript |
 | ORM | Prisma |
-| Database | PostgreSQL |
-| Auth | JWT in HttpOnly cookie (Secure, SameSite=Lax), bcrypt |
+| Database | PostgreSQL (Neon — pooled connection, `?sslmode=require`) |
+| Auth | JWT in HttpOnly cookie (Secure, SameSite=None in prod / Lax in dev), bcrypt |
 
 ---
 
@@ -283,7 +283,7 @@ All event lists — day view, month view pills, dashboard today/upcoming — sor
 
 **SMTP is optional**: If `SMTP_USER` env var is not set, mailer.ts no-ops with a console log. Browser reminders still work.
 
-**Running the project**:
+**Running the project locally**:
 ```bash
 # Terminal 1 — backend
 cd server && npm run dev
@@ -297,3 +297,42 @@ Frontend on :5173, backend on :4000. Vite proxies /api/* → :4000.
 ```bash
 cd server && npx prisma migrate dev --name <description>
 ```
+
+---
+
+## 13. Deployment
+
+| | Service | URL |
+|---|---|---|
+| Frontend | Cloudflare Workers | `https://personal-calendar.jaskaran-k10-2006.workers.dev` |
+| Backend | Render (free tier) | `https://calendar-api-oqtk.onrender.com` |
+| Database | Neon (free tier) | pooled PostgreSQL |
+
+**Cloudflare Workers setup:**
+- GitHub repo connected, root directory: `client`
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
+- `client/wrangler.jsonc`:
+```json
+{
+  "name": "personal-calendar",
+  "compatibility_date": "2026-06-29",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
+```
+- Env var in Cloudflare: `VITE_API_URL=https://calendar-api-oqtk.onrender.com` (required for API calls; triggers rebuild when set)
+
+**Render setup:**
+- Root directory: `server`
+- Build command: `npm install --include=dev && npx prisma generate && npx tsc && npx prisma migrate deploy`
+- Start command: `node dist/server.js`
+- Key env vars: `DATABASE_URL` (Neon pooled), `NODE_ENV=production`, `COOKIE_SECURE=true`, `JWT_SECRET`, `CLIENT_ORIGIN=https://personal-calendar.jaskaran-k10-2006.workers.dev`, `SMTP_*` (Gmail)
+
+**Cross-domain cookie note:** `SameSite=None; Secure=true` is required because frontend and backend are on different domains. Set `COOKIE_SECURE=true` on Render.
+
+**Render free tier:** Spins down after 15 min inactivity — first request takes ~30s cold start.
+
+**`calendars.ts` stub:** The calendar-sharing feature was removed. `server/src/modules/calendars.ts` is kept as an empty router stub to avoid breaking git history.
