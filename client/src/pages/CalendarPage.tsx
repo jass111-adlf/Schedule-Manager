@@ -67,7 +67,7 @@ function MonthView({ year, month, events, onDayClick, onEventClick }: {
         {cells.map((date, i) => {
           const dayEvents = date
             ? events
-                .filter(e => sameDay(new Date(e.start ?? e.startDatetime), date))
+                .filter(e => sameDay(new Date(e.start), date))
                 .sort((a, b) => {
                   if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
                   return new Date(a.start).getTime() - new Date(b.start).getTime();
@@ -86,7 +86,7 @@ function MonthView({ year, month, events, onDayClick, onEventClick }: {
                     {date.getDate()}
                   </span>
                   {dayEvents.map(e => (
-                    <EventPill key={e.id + e.start} event={e} onClick={ev => { ev.stopPropagation(); onEventClick(e.id); }} />
+                    <EventPill key={e.id + e.start} event={e} onClick={() => onEventClick(e.id)} />
                   ))}
                 </>
               )}
