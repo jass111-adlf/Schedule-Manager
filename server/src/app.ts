@@ -11,16 +11,9 @@ import remindersRouter  from './modules/reminders';
 import dashboardRouter  from './modules/dashboard';
 import friendsRouter    from './modules/friends';
 import eventTypesRouter from './modules/eventTypes';
-import path from 'path';
-
 const app = express();
 
-if (process.env.NODE_ENV === 'production') {
-  const clientBuild = path.join(__dirname, '../../client/dist');
-  app.use(express.static(clientBuild));
-  app.get('*', (_req, res) => res.sendFile(path.join(clientBuild, 'index.html')));
-}
-
+// Frontend is served by Cloudflare Pages — this process is API-only.
 app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());

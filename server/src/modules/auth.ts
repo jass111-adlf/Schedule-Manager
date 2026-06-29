@@ -48,10 +48,12 @@ async function loginUser(input: z.infer<typeof loginSchema>) {
 
 // ── Controller helpers ────────────────────────────────────────
 
+// Cross-domain (Cloudflare Pages → Render): SameSite must be 'none' + Secure=true.
+// Locally (same origin via Vite proxy): 'lax' + Secure=false.
 const cookieOpts = () => ({
   httpOnly: true,
   secure: env.COOKIE_SECURE,
-  sameSite: 'lax' as const,
+  sameSite: (env.COOKIE_SECURE ? 'none' : 'lax') as 'none' | 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000,
 });
 
@@ -76,7 +78,7 @@ router.post('/login', validateRequest(loginSchema), async (req: Request, res: Re
 });
 
 router.post('/logout', authenticate, (_req: Request, res: Response) => {
-  res.clearCookie('token', { httpOnly: true, sameSite: 'lax', secure: env.COOKIE_SECURE });
+  res.clearCookie('token', { httpOnly: true, sameSite: env.COOKIE_SECURE ? 'none' : 'lax', secure: env.COOKIE_SECURE });
   successResponse(res, { message: 'Logged out successfully' });
 });
 

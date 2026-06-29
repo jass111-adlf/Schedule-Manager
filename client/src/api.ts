@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+// In dev: VITE_API_URL is not set, so '/api' is used and the Vite proxy forwards to localhost:4000.
+// In production: VITE_API_URL = 'https://your-render-app.onrender.com' (set in Cloudflare Pages dashboard).
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: (import.meta.env.VITE_API_URL ?? '') + '/api',
   withCredentials: true,
 });
 
