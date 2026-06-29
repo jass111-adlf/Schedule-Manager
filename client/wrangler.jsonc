@@ -2,6 +2,7 @@
   "name": "personal-calendar",
   "compatibility_date": "2026-06-29",
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
   }
 }
