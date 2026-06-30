@@ -271,7 +271,24 @@ All event lists — day view, month view pills, dashboard today/upcoming — sor
 
 ---
 
-## 12. Important Implementation Notes
+## 12. Timezone Strategy
+
+**Storage:** All datetimes stored as UTC instants in PostgreSQL (`TIMESTAMPTZ`). The creator's IANA timezone (e.g. `Asia/Kolkata`) is stored in `events.timezone` at creation time and never changes.
+
+**Own calendar (CalendarPage, DashboardPage, EventDetailPage):** Times rendered in the **viewer's browser timezone** — achieved by calling `new Date(iso).toLocaleTimeString(...)` with no `timeZone` option, which defaults to the browser's local zone.
+
+**Profile / guest view (UserCalendarPage):** Times rendered in the **event owner's timezone**.
+- Backend includes `timezone` field on every event (both visible and hidden) in `GET /api/users/:id/events`
+- Backend returns `ownerTimezone` (derived from the first candidate event's timezone, fallback `'UTC'`)
+- Frontend uses `fmtTimeInTz(iso, ownerTz)` → `toLocaleTimeString({ timeZone: ownerTz })`
+- Day-bucketing uses `sameDayInTz(isoUtc, year, month, day, ownerTz)` → `Intl.DateTimeFormat('en-CA', { timeZone })` to get `YYYY-MM-DD` in the owner's zone before comparing
+- Owner's IANA zone is shown as a badge in the profile calendar header
+
+**Why this matters:** An event created at 09:00 IST (UTC+5:30) is stored as 03:30 UTC. A viewer in New York would otherwise see 22:30 EST (previous day). With owner-zone rendering, they correctly see it as a 09:00 event on the owner's calendar.
+
+---
+
+## 13. Important Implementation Notes
 
 **Prisma stale client**: After any schema change, you MUST run `npx prisma migrate dev` before the server will see new tables/columns. The client is regenerated automatically during migrate.
 

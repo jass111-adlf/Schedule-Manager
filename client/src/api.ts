@@ -49,8 +49,8 @@ export interface CustomEventType {
 
 // A profile event: visible = full details, visible = false = grey busy block
 export type ProfileEvent =
-  | { id: string; visible: true; title: string; description: string | null; location: string | null; start: string; end: string; allDay: boolean; eventType: string; customType: { name: string; color: string } | null; visibility: string; status: string }
-  | { id: string; visible: false; start: string; end: string; allDay: boolean };
+  | { id: string; visible: true; title: string; description: string | null; location: string | null; start: string; end: string; allDay: boolean; eventType: string; customType: { name: string; color: string } | null; visibility: string; status: string; timezone: string }
+  | { id: string; visible: false; start: string; end: string; allDay: boolean; timezone: string };
 
 // ── Auth ──────────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ export const usersApi = {
   me: () => api.get<{ data: { user: User } }>('/users/me'),
   search: (q: string) => api.get<{ data: { users: User[] } }>('/users/search', { params: { q } }),
   getProfile: (userId: string, start?: string, end?: string) =>
-    api.get<{ data: { events: ProfileEvent[]; isFriend: boolean } }>(`/users/${userId}/events`, { params: { start, end } }),
+    api.get<{ data: { events: ProfileEvent[]; isFriend: boolean; ownerTimezone: string } }>(`/users/${userId}/events`, { params: { start, end } }),
 };
 
 // ── Events ────────────────────────────────────────────────────

@@ -145,6 +145,7 @@ router.get('/:id/events', async (req: Request, res: Response, next: NextFunction
             customType: e.customType,
             visibility: e.visibility,
             status: deriveEventStatus(e.status, occ.end),
+            timezone: e.timezone,
           });
         } else {
           mapped.push({
@@ -153,6 +154,7 @@ router.get('/:id/events', async (req: Request, res: Response, next: NextFunction
             start: occ.start.toISOString(),
             end: occ.end.toISOString(),
             allDay: e.allDay,
+            timezone: e.timezone,
           });
         }
       }
@@ -164,7 +166,8 @@ router.get('/:id/events', async (req: Request, res: Response, next: NextFunction
       return new Date(a.start).getTime() - new Date(b.start).getTime();
     });
 
-    successResponse(res, { events: mapped, isFriend });
+    const ownerTimezone = candidates[0]?.timezone ?? 'UTC';
+    successResponse(res, { events: mapped, isFriend, ownerTimezone });
   } catch (err) { next(err); }
 });
 
