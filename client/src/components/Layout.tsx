@@ -20,7 +20,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-warm-bg">
       <nav className="bg-white border-b border-warm-border px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <span className="font-semibold text-coral-dark mr-4">Calendar</span>
+          <span className="text-lg font-bold text-coral-dark mr-4 tracking-tight">Sched-It</span>
           <NavLink to="/"         className={navLink}>Dashboard</NavLink>
           <NavLink to="/calendar" className={navLink}>Calendar</NavLink>
           <NavLink to="/people"   className={navLink}>People</NavLink>
@@ -43,6 +43,3 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </nav>
       <main className="max-w-6xl mx-auto px-6 py-6">{children}</main>
-    </div>
-  );
-}
