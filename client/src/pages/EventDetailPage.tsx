@@ -73,7 +73,7 @@ export default function EventDetailPage() {
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-semibold text-ink">{event.title}</h1>
+            <h1 className="text-3xl font-bold text-ink">{event.title}</h1>
             <span className={`mt-1 inline-block text-xs px-2 py-0.5 rounded-pill font-medium ${STATUS_BADGE[event.status] ?? 'bg-warm-card text-ink-muted'}`}>
               {event.status}
             </span>

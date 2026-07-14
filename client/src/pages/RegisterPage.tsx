@@ -29,7 +29,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-warm-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white rounded-[20px] p-8">
-        <h1 className="text-2xl font-semibold text-ink mb-1">Create account</h1>
+        <h1 className="text-3xl font-bold text-ink mb-1">Create account</h1>
         <p className="text-sm text-ink-muted mb-6">Get started with your calendar</p>
 
         {error && (

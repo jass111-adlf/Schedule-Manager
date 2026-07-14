@@ -108,7 +108,7 @@ export default function EventFormPage() {
   return (
     <Layout>
       <div className="max-w-xl mx-auto">
-        <h1 className="text-xl font-semibold text-ink mb-6">{isEdit ? 'Edit event' : 'New event'}</h1>
+        <h1 className="text-2xl font-bold text-ink mb-6">{isEdit ? 'Edit event' : 'New event'}</h1>
         {error && <p className="mb-4 text-sm text-coral-dark bg-coral-tint rounded-card px-3 py-2">{error}</p>}
 
         <form onSubmit={handleSubmit} className="bg-white p-6 rounded-container border border-warm-border space-y-4">

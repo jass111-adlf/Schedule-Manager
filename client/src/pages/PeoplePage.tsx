@@ -142,7 +142,7 @@ export default function PeoplePage() {
   return (
     <Layout>
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-xl font-semibold text-ink mb-5">People</h1>
+        <h1 className="text-2xl font-bold text-ink mb-5">People</h1>
 
         <RequestsPanel requests={requests} onAccept={acceptRequest} onDecline={declineRequest} />
 

@@ -187,13 +187,13 @@ export default function CalendarPage() {
           {view === 'month' ? (
             <>
               <button onClick={prevMonth} className="p-1.5 rounded-card hover:bg-warm-card text-ink-muted text-lg transition-colors">‹</button>
-              <h1 className="text-lg font-semibold text-ink w-44 text-center">{fmtMonth(year, month)}</h1>
+              <h1 className="text-xl font-bold text-ink w-44 text-center">{fmtMonth(year, month)}</h1>
               <button onClick={nextMonth} className="p-1.5 rounded-card hover:bg-warm-card text-ink-muted text-lg transition-colors">›</button>
             </>
           ) : (
             <>
               <button onClick={prevDay} className="p-1.5 rounded-card hover:bg-warm-card text-ink-muted text-lg transition-colors">‹</button>
-              <h1 className="text-base font-semibold text-ink w-64 text-center">{fmtDay(selected)}</h1>
+              <h1 className="text-lg font-bold text-ink w-64 text-center">{fmtDay(selected)}</h1>
               <button onClick={nextDay} className="p-1.5 rounded-card hover:bg-warm-card text-ink-muted text-lg transition-colors">›</button>
             </>
           )}

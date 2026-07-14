@@ -16,7 +16,7 @@ export default function ProfilePage() {
   return (
     <Layout>
       <div className="max-w-sm mx-auto">
-        <h1 className="text-xl font-semibold text-ink mb-6">Profile</h1>
+        <h1 className="text-2xl font-bold text-ink mb-6">Profile</h1>
 
         <div className="flex flex-col items-center mb-6">
           <span
