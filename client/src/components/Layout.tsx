@@ -7,21 +7,37 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   async function handleLogout() { await logout(); navigate('/login'); }
 
-  const link = ({ isActive }: { isActive: boolean }) =>
-    `text-sm ${isActive ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-800'}`;
+  const initials = user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?';
+
+  const navLink = ({ isActive }: { isActive: boolean }) =>
+    `text-sm px-3 py-1.5 rounded-pill transition-colors ${
+      isActive
+        ? 'bg-coral-tint text-coral-dark font-medium'
+        : 'text-ink-muted hover:bg-warm-card hover:text-ink'
+    }`;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-5">
-          <span className="font-semibold text-gray-800">📅 Calendar</span>
-          <NavLink to="/"         className={link}>Dashboard</NavLink>
-          <NavLink to="/calendar" className={link}>Calendar</NavLink>
-          <NavLink to="/people"   className={link}>People</NavLink>
+    <div className="min-h-screen bg-warm-bg">
+      <nav className="bg-white border-b border-warm-border px-6 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          <span className="font-semibold text-coral-dark mr-4">Calendar</span>
+          <NavLink to="/"         className={navLink}>Dashboard</NavLink>
+          <NavLink to="/calendar" className={navLink}>Calendar</NavLink>
+          <NavLink to="/people"   className={navLink}>People</NavLink>
         </div>
-        <div className="flex items-center gap-4">
-          <NavLink to="/profile" className={link}>{user?.name}</NavLink>
-          <button onClick={handleLogout} className="text-sm text-gray-600 hover:text-red-600 transition-colors">
+        <div className="flex items-center gap-3">
+          <NavLink to="/profile" className="flex items-center gap-2 text-sm text-ink-muted hover:text-ink">
+            <span
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-coral-dark"
+              style={{ backgroundColor: '#f5c4b3' }}
+            >
+              {initials}
+            </span>
+          </NavLink>
+          <button
+            onClick={handleLogout}
+            className="text-sm px-3 py-1.5 rounded-pill text-ink-muted hover:bg-warm-card hover:text-ink transition-colors"
+          >
             Sign out
           </button>
         </div>

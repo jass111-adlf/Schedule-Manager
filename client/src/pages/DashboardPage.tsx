@@ -10,11 +10,6 @@ function sortEvents(events: Event[]): Event[] {
   });
 }
 
-const TYPE_COLOR: Record<string, string> = {
-  work: 'bg-blue-500', personal: 'bg-purple-500', family: 'bg-green-500',
-  health: 'bg-red-500', social: 'bg-yellow-400', other: 'bg-gray-400',
-};
-
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
@@ -24,11 +19,16 @@ function fmtDate(iso: string) {
 
 function EventCard({ event, onClick }: { event: Event; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="w-full text-left flex items-start gap-3 p-3 rounded-lg bg-white shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-      <span className={`w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 ${TYPE_COLOR[event.eventType] ?? 'bg-gray-400'}`} />
+    <button
+      onClick={onClick}
+      className="w-full text-left flex items-start gap-3 p-3 rounded-card bg-warm-card hover:bg-coral-tint transition-colors"
+    >
+      <span className="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 bg-coral" />
       <div>
-        <p className="text-sm font-medium text-gray-800">{event.title}</p>
-        <p className="text-xs text-gray-500">{fmtDate(event.start)} · {event.allDay ? 'All day' : fmtTime(event.start)}</p>
+        <p className="text-sm font-medium text-ink">{event.title}</p>
+        <p className="text-xs text-ink-muted mt-0.5">
+          {fmtDate(event.start)} · {event.allDay ? 'All day' : fmtTime(event.start)}
+        </p>
       </div>
     </button>
   );
@@ -50,45 +50,50 @@ export default function DashboardPage() {
     } catch (err) { console.error(err); }
   }
 
-  if (!data) return <Layout><div className="text-sm text-gray-400 py-10 text-center">Loading…</div></Layout>;
+  if (!data) return <Layout><div className="text-sm text-ink-muted py-10 text-center">Loading…</div></Layout>;
 
   return (
     <Layout>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
         <section>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Today</h2>
+          <h2 className="text-[13px] font-semibold text-coral-dark mb-3">Today</h2>
           {data.todayEvents.length === 0
-            ? <p className="text-sm text-gray-400">Nothing today.</p>
+            ? <p className="text-sm text-ink-muted">Nothing today.</p>
             : <div className="space-y-2">{sortEvents(data.todayEvents).map(e => <EventCard key={e.id + e.start} event={e} onClick={() => navigate(`/events/${e.id}`)} />)}</div>
           }
-          <button onClick={() => navigate('/events/new')} className="mt-3 text-xs text-blue-600 hover:underline">+ New event</button>
+          <button
+            onClick={() => navigate('/events/new')}
+            className="mt-3 text-xs text-coral-dark hover:text-coral font-medium"
+          >
+            + New event
+          </button>
         </section>
 
         <section>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Next 7 days</h2>
+          <h2 className="text-[13px] font-semibold text-coral-dark mb-3">Next 7 days</h2>
           {data.upcomingEvents.length === 0
-            ? <p className="text-sm text-gray-400">Nothing upcoming.</p>
+            ? <p className="text-sm text-ink-muted">Nothing upcoming.</p>
             : <div className="space-y-2">{sortEvents(data.upcomingEvents).map(e => <EventCard key={e.id + e.start} event={e} onClick={() => navigate(`/events/${e.id}`)} />)}</div>
           }
         </section>
 
         <section>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Invitations</h2>
+          <h2 className="text-[13px] font-semibold text-coral-dark mb-3">Invitations</h2>
           {data.recentInvitations.length === 0
-            ? <p className="text-sm text-gray-400">No recent invitations.</p>
+            ? <p className="text-sm text-ink-muted">No recent invitations.</p>
             : <div className="space-y-2">
                 {data.recentInvitations.map(inv => (
-                  <div key={inv.id} className="p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
-                    <p className="text-sm font-medium text-gray-800">{inv.event.title}</p>
-                    <p className="text-xs text-gray-500 mb-2">from {inv.event.owner.name}</p>
+                  <div key={inv.id} className="p-3 bg-warm-card rounded-card">
+                    <p className="text-sm font-medium text-ink">{inv.event.title}</p>
+                    <p className="text-xs text-ink-muted mb-2">from {inv.event.owner.name}</p>
                     {inv.invitationStatus === 'pending' ? (
                       <div className="flex gap-2">
-                        <button onClick={() => respond(inv.id, 'accept')} className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">Accept</button>
-                        <button onClick={() => respond(inv.id, 'decline')} className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">Decline</button>
+                        <button onClick={() => respond(inv.id, 'accept')} className="text-xs px-3 py-1 bg-coral text-white rounded-pill hover:bg-coral-hover transition-colors">Accept</button>
+                        <button onClick={() => respond(inv.id, 'decline')} className="text-xs px-3 py-1 bg-coral-tint text-coral-dark rounded-pill hover:bg-coral-soft transition-colors">Decline</button>
                       </div>
                     ) : (
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${inv.invitationStatus === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-pill ${inv.invitationStatus === 'accepted' ? 'bg-coral-tint text-coral-dark' : 'bg-warm-border text-ink-muted'}`}>
                         {inv.invitationStatus}
                       </span>
                     )}

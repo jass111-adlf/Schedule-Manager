@@ -9,8 +9,8 @@ const toLocal = (iso: string) => {
 };
 const toISO = (local: string) => new Date(local).toISOString();
 
-const input = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
-const lbl   = 'block text-sm font-medium text-gray-700 mb-1';
+const input = 'w-full border border-warm-border rounded-[10px] px-3 py-2 text-sm text-ink focus:outline-none focus:border-coral transition-colors';
+const lbl   = 'block text-sm font-medium text-ink mb-1';
 
 const nowLocal = toLocal(new Date().toISOString());
 const endLocal = toLocal(new Date(Date.now() + 3600_000).toISOString());
@@ -108,10 +108,10 @@ export default function EventFormPage() {
   return (
     <Layout>
       <div className="max-w-xl mx-auto">
-        <h1 className="text-xl font-semibold text-gray-800 mb-6">{isEdit ? 'Edit event' : 'New event'}</h1>
-        {error && <p className="mb-4 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+        <h1 className="text-xl font-semibold text-ink mb-6">{isEdit ? 'Edit event' : 'New event'}</h1>
+        {error && <p className="mb-4 text-sm text-coral-dark bg-coral-tint rounded-card px-3 py-2">{error}</p>}
 
-        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-container border border-warm-border space-y-4">
 
           <div>
             <label className={lbl}>Title *</label>
@@ -129,8 +129,8 @@ export default function EventFormPage() {
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-            <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)} className="w-4 h-4" />
+          <label className="flex items-center gap-2 text-sm text-ink cursor-pointer">
+            <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)} className="w-4 h-4 accent-coral" />
             All day
           </label>
 
@@ -142,7 +142,7 @@ export default function EventFormPage() {
                 return (
                   <button type="button" key={t.id}
                     onClick={() => { setEventType(t.id); setCustomTypeId(''); }}
-                    className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all ${active ? 'text-white border-transparent' : 'border-gray-300 text-gray-600 hover:border-gray-400'}`}
+                    className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-pill border transition-all ${active ? 'text-white border-transparent' : 'border-warm-border text-ink-muted hover:border-coral-soft'}`}
                     style={active ? { backgroundColor: t.color } : {}}
                   >
                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: t.color }} />
@@ -155,7 +155,7 @@ export default function EventFormPage() {
                 return (
                   <button type="button" key={t.id}
                     onClick={() => { setCustomTypeId(t.id); setEventType('other'); }}
-                    className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all ${active ? 'text-white border-transparent' : 'border-gray-300 text-gray-600 hover:border-gray-400'}`}
+                    className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-pill border transition-all ${active ? 'text-white border-transparent' : 'border-warm-border text-ink-muted hover:border-coral-soft'}`}
                     style={active ? { backgroundColor: t.color } : {}}
                   >
                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: t.color }} />
@@ -164,7 +164,7 @@ export default function EventFormPage() {
                 );
               })}
               <button type="button" onClick={() => setShowNewType(v => !v)}
-                className="text-xs px-2.5 py-1 rounded-full border border-dashed border-blue-400 text-blue-500 hover:bg-blue-50">
+                className="text-xs px-2.5 py-1 rounded-pill border border-dashed border-coral-soft text-coral-dark hover:bg-coral-tint transition-colors">
                 + Custom
               </button>
             </div>
@@ -172,15 +172,15 @@ export default function EventFormPage() {
             {showNewType && (
               <div className="flex gap-2 items-center mt-1">
                 <input type="text" placeholder="Type name" value={newTypeName} onChange={e => setNewTypeName(e.target.value)}
-                  className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <input type="color" value={newTypeColor} onChange={e => setNewTypeColor(e.target.value)} className="h-9 w-12 cursor-pointer rounded border border-gray-300" />
-                <button type="button" onClick={handleCreateCustomType} className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button>
+                  className="flex-1 border border-warm-border rounded-[10px] px-2 py-1.5 text-sm focus:outline-none focus:border-coral transition-colors" />
+                <input type="color" value={newTypeColor} onChange={e => setNewTypeColor(e.target.value)} className="h-9 w-12 cursor-pointer rounded-[10px] border border-warm-border" />
+                <button type="button" onClick={handleCreateCustomType} className="text-sm px-3 py-1.5 bg-coral text-white rounded-pill hover:bg-coral-hover transition-colors">Add</button>
               </div>
             )}
 
             <div className="flex items-center gap-1.5 mt-1.5">
               <span className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedColor }} />
-              <span className="text-xs text-gray-500">Color for this event</span>
+              <span className="text-xs text-ink-muted">Color for this event</span>
             </div>
           </div>
 
@@ -223,10 +223,10 @@ export default function EventFormPage() {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button type="submit" disabled={saving} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-              {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create event'}
+            <button type="submit" disabled={saving} className="flex-1 bg-coral text-white rounded-pill py-2 text-sm font-medium hover:bg-coral-hover disabled:opacity-50 transition-colors">
+              {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create event'}
             </button>
-            <button type="button" onClick={() => navigate(-1)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button type="button" onClick={() => navigate(-1)} className="px-4 py-2 text-sm text-ink-muted border border-warm-border rounded-pill hover:bg-warm-card transition-colors">
               Cancel
             </button>
           </div>

@@ -6,7 +6,17 @@ import { usersApi, friendsApi, User } from '../api';
 type FriendUser = User & { friendshipId: string };
 type FriendRequest = { id: string; requester: User; createdAt: string };
 
-// ── Pending friend requests ────────────────────────────────────
+function Avatar({ name }: { name: string }) {
+  const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  return (
+    <span
+      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold text-coral-dark flex-shrink-0"
+      style={{ backgroundColor: '#f5c4b3' }}
+    >
+      {initials}
+    </span>
+  );
+}
 
 function RequestsPanel({ requests, onAccept, onDecline }: {
   requests: FriendRequest[];
@@ -16,17 +26,20 @@ function RequestsPanel({ requests, onAccept, onDecline }: {
   if (requests.length === 0) return null;
   return (
     <div className="mb-6">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Pending requests</p>
+      <p className="text-[13px] font-semibold text-coral-dark mb-2">Pending requests</p>
       <div className="space-y-2">
         {requests.map(r => (
-          <div key={r.id} className="bg-white border border-gray-100 rounded-xl p-3 flex items-center justify-between shadow-sm">
-            <div>
-              <p className="text-sm font-medium text-gray-800">{r.requester.name}</p>
-              <p className="text-xs text-gray-500">{r.requester.email}</p>
+          <div key={r.id} className="bg-white rounded-container p-3 flex items-center justify-between border border-warm-border">
+            <div className="flex items-center gap-3">
+              <Avatar name={r.requester.name} />
+              <div>
+                <p className="text-sm font-medium text-ink">{r.requester.name}</p>
+                <p className="text-xs text-ink-muted">{r.requester.email}</p>
+              </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => onAccept(r.id)} className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">Accept</button>
-              <button onClick={() => onDecline(r.id)} className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">Decline</button>
+              <button onClick={() => onAccept(r.id)} className="text-xs px-3 py-1 bg-coral text-white rounded-pill hover:bg-coral-hover transition-colors">Accept</button>
+              <button onClick={() => onDecline(r.id)} className="text-xs px-3 py-1 bg-coral-tint text-coral-dark rounded-pill hover:bg-coral-soft transition-colors">Decline</button>
             </div>
           </div>
         ))}
@@ -35,32 +48,31 @@ function RequestsPanel({ requests, onAccept, onDecline }: {
   );
 }
 
-// ── Friends list ──────────────────────────────────────────────
-
 function FriendCard({ friend, onRemove, onViewProfile }: {
   friend: FriendUser;
   onRemove: () => void;
   onViewProfile: () => void;
 }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-4 flex items-center justify-between shadow-sm">
-      <div>
-        <p className="text-sm font-medium text-gray-800">{friend.name}</p>
-        <p className="text-xs text-gray-500">{friend.email}</p>
+    <div className="bg-white rounded-container p-4 flex items-center justify-between border border-warm-border">
+      <div className="flex items-center gap-3">
+        <Avatar name={friend.name} />
+        <div>
+          <p className="text-sm font-medium text-ink">{friend.name}</p>
+          <p className="text-xs text-ink-muted">{friend.email}</p>
+        </div>
       </div>
       <div className="flex gap-2">
-        <button onClick={onViewProfile} className="text-xs px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
+        <button onClick={onViewProfile} className="text-xs px-3 py-1 bg-coral-tint text-coral-dark rounded-pill hover:bg-coral-soft transition-colors">
           View profile
         </button>
-        <button onClick={onRemove} className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">
+        <button onClick={onRemove} className="text-xs px-3 py-1 bg-warm-card text-ink-muted rounded-pill hover:bg-warm-border transition-colors">
           Remove
         </button>
       </div>
     </div>
   );
 }
-
-// ── Search result card ────────────────────────────────────────
 
 function SearchCard({ u, onAction, onViewProfile }: {
   u: User & { friendshipId?: string | null; friendshipStatus?: string | null; iRequested?: boolean };
@@ -71,30 +83,31 @@ function SearchCard({ u, onAction, onViewProfile }: {
   async function remove() { if (u.friendshipId) { await friendsApi.remove(u.friendshipId); onAction(); } }
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-4 flex items-center justify-between shadow-sm">
-      <div>
-        <p className="text-sm font-medium text-gray-800">{u.name}</p>
-        <p className="text-xs text-gray-500">{u.email}</p>
+    <div className="bg-white rounded-container p-4 flex items-center justify-between border border-warm-border">
+      <div className="flex items-center gap-3">
+        <Avatar name={u.name} />
+        <div>
+          <p className="text-sm font-medium text-ink">{u.name}</p>
+          <p className="text-xs text-ink-muted">{u.email}</p>
+        </div>
       </div>
       <div className="flex gap-2">
-        <button onClick={onViewProfile} className="text-xs px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
+        <button onClick={onViewProfile} className="text-xs px-3 py-1 bg-coral-tint text-coral-dark rounded-pill hover:bg-coral-soft transition-colors">
           View profile
         </button>
         {u.friendshipStatus === 'accepted' ? (
-          <button onClick={remove} className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">Unfriend</button>
+          <button onClick={remove} className="text-xs px-3 py-1 bg-warm-card text-ink-muted rounded-pill hover:bg-warm-border transition-colors">Unfriend</button>
         ) : u.friendshipStatus === 'pending' && u.iRequested ? (
-          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded">Request sent</span>
+          <span className="text-xs px-3 py-1 bg-warm-card text-ink-muted rounded-pill">Sent</span>
         ) : u.friendshipStatus === 'pending' ? (
-          <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded">Pending</span>
+          <span className="text-xs px-3 py-1 bg-coral-tint text-coral-dark rounded-pill">Pending</span>
         ) : (
-          <button onClick={sendRequest} className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">Add friend</button>
+          <button onClick={sendRequest} className="text-xs px-3 py-1 bg-coral text-white rounded-pill hover:bg-coral-hover transition-colors">Add</button>
         )}
       </div>
     </div>
   );
 }
-
-// ── People page ───────────────────────────────────────────────
 
 export default function PeoplePage() {
   const navigate = useNavigate();
@@ -129,18 +142,16 @@ export default function PeoplePage() {
   return (
     <Layout>
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-xl font-semibold text-gray-800 mb-4">People</h1>
+        <h1 className="text-xl font-semibold text-ink mb-5">People</h1>
 
-        {/* Incoming friend requests */}
         <RequestsPanel requests={requests} onAccept={acceptRequest} onDecline={declineRequest} />
 
-        {/* Friends list */}
         <div className="mb-6">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            Friends ({friends.length})
+          <p className="text-[13px] font-semibold text-coral-dark mb-2">
+            Friends {friends.length > 0 && `(${friends.length})`}
           </p>
           {friends.length === 0 ? (
-            <p className="text-sm text-gray-400">No friends yet. Search for people to connect.</p>
+            <p className="text-sm text-ink-muted">No friends yet. Search for people to connect.</p>
           ) : (
             <div className="space-y-2">
               {friends.map(f => (
@@ -155,23 +166,21 @@ export default function PeoplePage() {
           )}
         </div>
 
-        {/* Search */}
         <div className="flex gap-2 mb-4">
           <input
             type="text" placeholder="Search by name or email…" value={q}
             onChange={e => setQ(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), search())}
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 border border-warm-border rounded-[10px] px-3 py-2 text-sm text-ink focus:outline-none focus:border-coral transition-colors"
           />
-          <button onClick={search} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Search</button>
+          <button onClick={search} className="px-4 py-2 bg-coral text-white text-sm rounded-pill hover:bg-coral-hover transition-colors">Search</button>
         </div>
 
-        {/* Search results */}
         {searched && (
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Results</p>
+            <p className="text-[13px] font-semibold text-coral-dark mb-2">Results</p>
             {results.length === 0 ? (
-              <p className="text-sm text-gray-400">No users found.</p>
+              <p className="text-sm text-ink-muted">No users found.</p>
             ) : (
               <div className="space-y-2">
                 {results.map(u => (

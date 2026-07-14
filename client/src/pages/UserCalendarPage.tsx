@@ -34,7 +34,6 @@ function fmtDay(d: Date) {
   return d.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
-// Sort: all-day first, then timed earliest → latest
 function sortProfileEvents(arr: ProfileEvent[]): ProfileEvent[] {
   return [...arr].sort((a, b) => {
     if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
@@ -58,12 +57,12 @@ function ProfileMonthView({ year, month, events, ownerTz, onDayClick }: {
 
   return (
     <div>
-      <div className="grid grid-cols-7 text-xs font-medium text-gray-500 mb-1">
+      <div className="grid grid-cols-7 text-xs font-medium text-ink-muted mb-1">
         {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
           <div key={d} className="text-center py-1">{d}</div>
         ))}
       </div>
-      <div className="grid grid-cols-7 border-l border-t border-gray-200">
+      <div className="grid grid-cols-7 border-l border-t border-warm-border">
         {cells.map((day, i) => {
           const dayEvents = day
             ? sortProfileEvents(events.filter(e => sameDayInTz(e.start, year, month, day, ownerTz)))
@@ -74,17 +73,17 @@ function ProfileMonthView({ year, month, events, ownerTz, onDayClick }: {
             <div
               key={i}
               onClick={() => day && onDayClick(new Date(year, month, day))}
-              className={`min-h-20 border-b border-r border-gray-200 p-1 cursor-pointer hover:bg-gray-50 ${!day ? 'bg-gray-50 cursor-default' : ''}`}
+              className={`min-h-20 border-b border-r border-warm-border p-1 cursor-pointer hover:bg-coral-tint transition-colors ${!day ? 'bg-warm-card cursor-default' : ''}`}
             >
               {day && (
                 <>
-                  <span className={`text-xs inline-flex items-center justify-center w-6 h-6 rounded-full mb-1 ${isToday ? 'bg-blue-600 text-white font-semibold' : 'text-gray-700'}`}>
+                  <span className={`text-xs inline-flex items-center justify-center w-6 h-6 rounded-full mb-1 ${isToday ? 'bg-coral text-white font-semibold' : 'text-ink'}`}>
                     {day}
                   </span>
                   {dayEvents.map((e, idx) => {
                     if (!e.visible) {
                       return (
-                        <div key={e.id + idx} className="w-full text-xs text-gray-400 px-1.5 py-0.5 rounded bg-gray-200 truncate mb-0.5 italic">
+                        <div key={e.id + idx} className="w-full text-xs text-ink-muted px-1.5 py-0.5 rounded bg-warm-border truncate mb-0.5 italic">
                           Busy
                         </div>
                       );
@@ -116,7 +115,7 @@ function ProfileDayView({ date, events, ownerTz }: { date: Date; events: Profile
   const dayEvents = sortProfileEvents(events.filter(e => sameDayInTz(e.start, year, month, day, ownerTz)));
 
   if (dayEvents.length === 0) {
-    return <p className="text-sm text-gray-400 py-6">No visible events this day.</p>;
+    return <p className="text-sm text-ink-muted py-6">No visible events this day.</p>;
   }
 
   return (
@@ -124,15 +123,15 @@ function ProfileDayView({ date, events, ownerTz }: { date: Date; events: Profile
       {dayEvents.map((e, idx) => {
         if (!e.visible) {
           return (
-            <div key={e.id + idx} className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 border border-gray-200">
-              <span className="w-2.5 h-2.5 rounded-full bg-gray-400 flex-shrink-0" />
+            <div key={e.id + idx} className="flex items-center gap-3 p-3 rounded-card bg-warm-card border border-warm-border">
+              <span className="w-2.5 h-2.5 rounded-full bg-warm-border flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium text-gray-400 italic">Busy</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-sm font-medium text-ink-muted italic">Busy</p>
+                <p className="text-xs text-ink-muted">
                   {e.allDay ? 'All day' : `${fmtTimeInTz(e.start, ownerTz)} – ${fmtTimeInTz(e.end, ownerTz)}`}
                 </p>
               </div>
-              <span className="ml-auto text-gray-300 text-lg">🔒</span>
+              <span className="ml-auto text-ink-muted text-sm">🔒</span>
             </div>
           );
         }
@@ -141,20 +140,20 @@ function ProfileDayView({ date, events, ownerTz }: { date: Date; events: Profile
         return (
           <div
             key={e.id + idx}
-            className={`flex items-start gap-3 p-3 rounded-lg bg-white shadow-sm border border-gray-100 ${e.status === 'cancelled' ? 'opacity-50' : ''}`}
+            className={`flex items-start gap-3 p-3 rounded-card bg-white border border-warm-border hover:bg-coral-tint transition-colors ${e.status === 'cancelled' ? 'opacity-50' : ''}`}
           >
             <span className="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0" style={{ backgroundColor: color }} />
             <div className="flex-1 min-w-0">
-              <p className={`text-sm font-medium text-gray-800 ${e.status === 'cancelled' ? 'line-through' : ''}`}>
+              <p className={`text-sm font-medium text-ink ${e.status === 'cancelled' ? 'line-through' : ''}`}>
                 {e.title}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-ink-muted">
                 {e.allDay ? 'All day' : `${fmtTimeInTz(e.start, ownerTz)} – ${fmtTimeInTz(e.end, ownerTz)}`}
               </p>
-              {e.location && <p className="text-xs text-gray-400 truncate">{e.location}</p>}
-              {e.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{e.description}</p>}
+              {e.location && <p className="text-xs text-ink-muted truncate">{e.location}</p>}
+              {e.description && <p className="text-xs text-ink-muted mt-1 line-clamp-2">{e.description}</p>}
             </div>
-            <span className="text-xs text-gray-300 flex-shrink-0 capitalize">{e.visibility}</span>
+            <span className="text-xs text-ink-muted flex-shrink-0 capitalize">{e.visibility}</span>
           </div>
         );
       })}
@@ -172,14 +171,14 @@ export default function UserCalendarPage() {
 
   const userName: string = (location.state as any)?.name ?? 'User';
 
-  const [year, setYear]           = useState(today.getFullYear());
-  const [month, setMonth]         = useState(today.getMonth());
-  const [view, setView]           = useState<'month' | 'day'>('month');
-  const [selected, setSelected]   = useState<Date>(today);
-  const [events, setEvents]       = useState<ProfileEvent[]>([]);
-  const [isFriend, setIsFriend]   = useState(false);
-  const [ownerTz, setOwnerTz]     = useState('UTC');
-  const [loading, setLoading]     = useState(true);
+  const [year, setYear]         = useState(today.getFullYear());
+  const [month, setMonth]       = useState(today.getMonth());
+  const [view, setView]         = useState<'month' | 'day'>('month');
+  const [selected, setSelected] = useState<Date>(today);
+  const [events, setEvents]     = useState<ProfileEvent[]>([]);
+  const [isFriend, setIsFriend] = useState(false);
+  const [ownerTz, setOwnerTz]   = useState('UTC');
+  const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
     if (!userId) return;
@@ -209,14 +208,14 @@ export default function UserCalendarPage() {
 
   return (
     <Layout>
-      <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => navigate('/people')} className="text-sm text-gray-500 hover:text-gray-800">← Back</button>
-        <h1 className="text-lg font-semibold text-gray-800">{userName}'s Calendar</h1>
-        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <button onClick={() => navigate('/people')} className="text-sm text-ink-muted hover:text-ink transition-colors">← Back</button>
+        <h1 className="text-lg font-semibold text-ink">{userName}'s Calendar</h1>
+        <span className="text-xs px-2 py-0.5 rounded-pill bg-coral-tint text-coral-dark">
           {isFriend ? 'Friend view' : 'Public view'}
         </span>
         {ownerTz !== 'UTC' && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+          <span className="text-xs px-2 py-0.5 rounded-pill bg-warm-card text-ink-muted border border-warm-border">
             {ownerTz}
           </span>
         )}
@@ -226,31 +225,31 @@ export default function UserCalendarPage() {
         <div className="flex items-center gap-2">
           {view === 'month' ? (
             <>
-              <button onClick={prevMonth} className="p-1.5 rounded hover:bg-gray-100 text-gray-600 text-lg">‹</button>
-              <h2 className="text-base font-semibold text-gray-800 w-44 text-center">{fmtMonth(year, month)}</h2>
-              <button onClick={nextMonth} className="p-1.5 rounded hover:bg-gray-100 text-gray-600 text-lg">›</button>
+              <button onClick={prevMonth} className="p-1.5 rounded-card hover:bg-warm-card text-ink-muted text-lg transition-colors">‹</button>
+              <h2 className="text-base font-semibold text-ink w-44 text-center">{fmtMonth(year, month)}</h2>
+              <button onClick={nextMonth} className="p-1.5 rounded-card hover:bg-warm-card text-ink-muted text-lg transition-colors">›</button>
             </>
           ) : (
             <>
-              <button onClick={prevDay} className="p-1.5 rounded hover:bg-gray-100 text-gray-600 text-lg">‹</button>
-              <h2 className="text-base font-semibold text-gray-800 w-64 text-center">{fmtDay(selected)}</h2>
-              <button onClick={nextDay} className="p-1.5 rounded hover:bg-gray-100 text-gray-600 text-lg">›</button>
+              <button onClick={prevDay} className="p-1.5 rounded-card hover:bg-warm-card text-ink-muted text-lg transition-colors">‹</button>
+              <h2 className="text-base font-semibold text-ink w-64 text-center">{fmtDay(selected)}</h2>
+              <button onClick={nextDay} className="p-1.5 rounded-card hover:bg-warm-card text-ink-muted text-lg transition-colors">›</button>
             </>
           )}
         </div>
-        <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
-          <button onClick={() => setView('month')} className={`px-3 py-1.5 ${view === 'month' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Month</button>
-          <button onClick={() => { setSelected(today); setView('day'); }} className={`px-3 py-1.5 ${view === 'day' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Day</button>
+        <div className="flex rounded-pill border border-warm-border overflow-hidden text-sm">
+          <button onClick={() => setView('month')} className={`px-3 py-1.5 transition-colors ${view === 'month' ? 'bg-coral text-white' : 'bg-white text-ink-muted hover:bg-warm-card'}`}>Month</button>
+          <button onClick={() => { setSelected(today); setView('day'); }} className={`px-3 py-1.5 transition-colors ${view === 'day' ? 'bg-coral text-white' : 'bg-white text-ink-muted hover:bg-warm-card'}`}>Day</button>
         </div>
       </div>
 
-      <div className="flex items-center gap-4 mb-4 text-xs text-gray-500">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500 inline-block" /> Visible event</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-300 inline-block" /> Private / restricted</span>
+      <div className="flex items-center gap-4 mb-4 text-xs text-ink-muted">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded inline-block" style={{ backgroundColor: '#a855f7' }} /> Visible event</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-warm-border inline-block" /> Private / restricted</span>
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-sm text-gray-400">Loading calendar…</div>
+        <div className="text-center py-20 text-sm text-ink-muted">Loading calendar…</div>
       ) : view === 'month' ? (
         <ProfileMonthView year={year} month={month} events={events} ownerTz={ownerTz} onDayClick={d => { setSelected(d); setView('day'); }} />
       ) : (
