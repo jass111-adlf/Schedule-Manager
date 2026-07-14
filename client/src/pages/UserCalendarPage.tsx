@@ -210,7 +210,7 @@ export default function UserCalendarPage() {
     <Layout>
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <button onClick={() => navigate('/people')} className="text-sm text-ink-muted hover:text-ink transition-colors">← Back</button>
-        <h1 className="text-lg font-semibold text-ink">{userName}'s Calendar</h1>
+        <h1 className="text-xl font-bold text-ink">{userName}'s Calendar</h1>
         <span className="text-xs px-2 py-0.5 rounded-pill bg-coral-tint text-coral-dark">
           {isFriend ? 'Friend view' : 'Public view'}
         </span>
@@ -226,13 +226,13 @@ export default function UserCalendarPage() {
           {view === 'month' ? (
             <>
               <button onClick={prevMonth} className="p-1.5 rounded-card hover:bg-warm-card text-ink-muted text-lg transition-colors">‹</button>
-              <h2 className="text-base font-semibold text-ink w-44 text-center">{fmtMonth(year, month)}</h2>
+              <h2 className="text-lg font-bold text-ink w-44 text-center">{fmtMonth(year, month)}</h2>
               <button onClick={nextMonth} className="p-1.5 rounded-card hover:bg-warm-card text-ink-muted text-lg transition-colors">›</button>
             </>
           ) : (
             <>
               <button onClick={prevDay} className="p-1.5 rounded-card hover:bg-warm-card text-ink-muted text-lg transition-colors">‹</button>
-              <h2 className="text-base font-semibold text-ink w-64 text-center">{fmtDay(selected)}</h2>
+              <h2 className="text-lg font-bold text-ink w-64 text-center">{fmtDay(selected)}</h2>
               <button onClick={nextDay} className="p-1.5 rounded-card hover:bg-warm-card text-ink-muted text-lg transition-colors">›</button>
             </>
           )}
