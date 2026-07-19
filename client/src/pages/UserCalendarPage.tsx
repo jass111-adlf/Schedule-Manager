@@ -3,28 +3,31 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { usersApi, ProfileEvent } from '../api';
 
-// ── Timezone-aware helpers ─────────────────────────────────────
+// ── Helpers (all local-browser time) ─────────────────────────
 
 const BUILTIN_COLORS: Record<string, string> = {
   work: '#3b82f6', personal: '#a855f7', family: '#22c55e',
   health: '#ef4444', social: '#facc15', other: '#9ca3af',
 };
 
-function profileEventColor(e: Extract<ProfileEvent, { visible: true }>): string {
+type VisibleEvent = Extract<ProfileEvent, { visible: true }>;
+
+function profileEventColor(e: VisibleEvent): string {
   if (e.customType?.color) return e.customType.color;
   return BUILTIN_COLORS[e.eventType] ?? '#9ca3af';
 }
 
-// Format time in a specific IANA timezone
-function fmtTimeInTz(iso: string, tz: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: tz });
+function fmtTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-// Check if a UTC instant falls on a given calendar date in a given timezone
-function sameDayInTz(isoUtc: string, year: number, month: number, day: number, tz: string): boolean {
-  const s = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date(isoUtc)); // "YYYY-MM-DD"
-  const [y, m, d] = s.split('-').map(Number);
-  return y === year && m - 1 === month && d === day;
+function fmtDt(iso: string): string {
+  return new Date(iso).toLocaleString('default', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function sameDayLocal(isoUtc: string, year: number, month: number, day: number): boolean {
+  const d = new Date(isoUtc);
+  return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
 }
 
 function fmtMonth(y: number, m: number) {
@@ -41,14 +44,50 @@ function sortProfileEvents(arr: ProfileEvent[]): ProfileEvent[] {
   });
 }
 
+// ── Mini event modal ──────────────────────────────────────────
+
+function EventModal({ event, onClose }: { event: VisibleEvent; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/20" />
+      <div
+        className="relative bg-white rounded-container border border-warm-border p-5 w-full max-w-sm shadow-lg"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between mb-3">
+          <h3 className="text-base font-bold text-ink pr-4">{event.title}</h3>
+          <button onClick={onClose} className="text-ink-muted hover:text-ink text-xl leading-none">×</button>
+        </div>
+        <p className="text-sm text-ink-muted mb-1">
+          {event.allDay ? 'All day' : `${fmtTime(event.start)} – ${fmtTime(event.end)}`}
+        </p>
+        {!event.allDay && (
+          <p className="text-xs text-ink-muted mb-2">{fmtDt(event.start)}</p>
+        )}
+        {event.location && (
+          <p className="text-xs text-ink-muted mb-1">📍 {event.location}</p>
+        )}
+        {event.description && (
+          <p className="text-xs text-ink mt-2 whitespace-pre-wrap line-clamp-4">{event.description}</p>
+        )}
+        <div className="mt-3">
+          <span className="text-xs px-2 py-0.5 rounded-pill bg-coral-tint text-coral-dark capitalize">
+            {event.visibility}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Month view ────────────────────────────────────────────────
 
-function ProfileMonthView({ year, month, events, ownerTz, onDayClick }: {
-  year: number; month: number; events: ProfileEvent[]; ownerTz: string;
+function ProfileMonthView({ year, month, events, onDayClick, onEventClick }: {
+  year: number; month: number; events: ProfileEvent[];
   onDayClick: (d: Date) => void;
+  onEventClick: (e: VisibleEvent) => void;
 }) {
   const today = new Date();
-  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: ownerTz }).format(today);
   const firstDow = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells = Array.from({ length: firstDow + daysInMonth }, (_, i) =>
@@ -65,10 +104,11 @@ function ProfileMonthView({ year, month, events, ownerTz, onDayClick }: {
       <div className="grid grid-cols-7 border-l border-t border-warm-border">
         {cells.map((day, i) => {
           const dayEvents = day
-            ? sortProfileEvents(events.filter(e => sameDayInTz(e.start, year, month, day, ownerTz)))
+            ? sortProfileEvents(events.filter(e => sameDayLocal(e.start, year, month, day)))
             : [];
-          const dayStr = day ? `${year}-${String(month + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}` : '';
-          const isToday = dayStr === todayStr;
+          const isToday = day
+            ? today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
+            : false;
           return (
             <div
               key={i}
@@ -89,13 +129,14 @@ function ProfileMonthView({ year, month, events, ownerTz, onDayClick }: {
                       );
                     }
                     return (
-                      <div
+                      <button
                         key={e.id + idx}
+                        onClick={ev => { ev.stopPropagation(); onEventClick(e); }}
                         style={{ backgroundColor: profileEventColor(e) }}
-                        className={`w-full text-left text-xs text-white px-1.5 py-0.5 rounded truncate mb-0.5 ${e.status === 'cancelled' ? 'opacity-40 line-through' : ''}`}
+                        className={`w-full text-left text-xs text-white px-1.5 py-0.5 rounded truncate mb-0.5 hover:opacity-80 transition-opacity ${e.status === 'cancelled' ? 'opacity-40 line-through' : ''}`}
                       >
-                        {e.allDay ? e.title : `${fmtTimeInTz(e.start, ownerTz)} ${e.title}`}
-                      </div>
+                        {e.allDay ? e.title : `${fmtTime(e.start)} ${e.title}`}
+                      </button>
                     );
                   })}
                 </>
@@ -110,9 +151,13 @@ function ProfileMonthView({ year, month, events, ownerTz, onDayClick }: {
 
 // ── Day view ──────────────────────────────────────────────────
 
-function ProfileDayView({ date, events, ownerTz }: { date: Date; events: ProfileEvent[]; ownerTz: string }) {
+function ProfileDayView({ date, events, onEventClick }: {
+  date: Date;
+  events: ProfileEvent[];
+  onEventClick: (e: VisibleEvent) => void;
+}) {
   const { year, month, day } = { year: date.getFullYear(), month: date.getMonth(), day: date.getDate() };
-  const dayEvents = sortProfileEvents(events.filter(e => sameDayInTz(e.start, year, month, day, ownerTz)));
+  const dayEvents = sortProfileEvents(events.filter(e => sameDayLocal(e.start, year, month, day)));
 
   if (dayEvents.length === 0) {
     return <p className="text-sm text-ink-muted py-6">No visible events this day.</p>;
@@ -128,7 +173,7 @@ function ProfileDayView({ date, events, ownerTz }: { date: Date; events: Profile
               <div>
                 <p className="text-sm font-medium text-ink-muted italic">Busy</p>
                 <p className="text-xs text-ink-muted">
-                  {e.allDay ? 'All day' : `${fmtTimeInTz(e.start, ownerTz)} – ${fmtTimeInTz(e.end, ownerTz)}`}
+                  {e.allDay ? 'All day' : `${fmtTime(e.start)} – ${fmtTime(e.end)}`}
                 </p>
               </div>
               <span className="ml-auto text-ink-muted text-sm">🔒</span>
@@ -138,9 +183,10 @@ function ProfileDayView({ date, events, ownerTz }: { date: Date; events: Profile
 
         const color = profileEventColor(e);
         return (
-          <div
+          <button
             key={e.id + idx}
-            className={`flex items-start gap-3 p-3 rounded-card bg-white border border-warm-border hover:bg-coral-tint transition-colors ${e.status === 'cancelled' ? 'opacity-50' : ''}`}
+            onClick={() => onEventClick(e)}
+            className={`w-full text-left flex items-start gap-3 p-3 rounded-card bg-white border border-warm-border hover:bg-coral-tint transition-colors ${e.status === 'cancelled' ? 'opacity-50' : ''}`}
           >
             <span className="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0" style={{ backgroundColor: color }} />
             <div className="flex-1 min-w-0">
@@ -148,13 +194,13 @@ function ProfileDayView({ date, events, ownerTz }: { date: Date; events: Profile
                 {e.title}
               </p>
               <p className="text-xs text-ink-muted">
-                {e.allDay ? 'All day' : `${fmtTimeInTz(e.start, ownerTz)} – ${fmtTimeInTz(e.end, ownerTz)}`}
+                {e.allDay ? 'All day' : `${fmtTime(e.start)} – ${fmtTime(e.end)}`}
               </p>
               {e.location && <p className="text-xs text-ink-muted truncate">{e.location}</p>}
               {e.description && <p className="text-xs text-ink-muted mt-1 line-clamp-2">{e.description}</p>}
             </div>
             <span className="text-xs text-ink-muted flex-shrink-0 capitalize">{e.visibility}</span>
-          </div>
+          </button>
         );
       })}
     </div>
@@ -171,14 +217,14 @@ export default function UserCalendarPage() {
 
   const userName: string = (location.state as any)?.name ?? 'User';
 
-  const [year, setYear]         = useState(today.getFullYear());
-  const [month, setMonth]       = useState(today.getMonth());
-  const [view, setView]         = useState<'month' | 'day'>('month');
-  const [selected, setSelected] = useState<Date>(today);
-  const [events, setEvents]     = useState<ProfileEvent[]>([]);
-  const [isFriend, setIsFriend] = useState(false);
-  const [ownerTz, setOwnerTz]   = useState('UTC');
-  const [loading, setLoading]   = useState(true);
+  const [year, setYear]               = useState(today.getFullYear());
+  const [month, setMonth]             = useState(today.getMonth());
+  const [view, setView]               = useState<'month' | 'day'>('month');
+  const [selected, setSelected]       = useState<Date>(today);
+  const [events, setEvents]           = useState<ProfileEvent[]>([]);
+  const [isFriend, setIsFriend]       = useState(false);
+  const [loading, setLoading]         = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState<VisibleEvent | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -189,7 +235,6 @@ export default function UserCalendarPage() {
       .then(r => {
         setEvents(r.data.data.events);
         setIsFriend(r.data.data.isFriend);
-        setOwnerTz(r.data.data.ownerTimezone);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -208,17 +253,16 @@ export default function UserCalendarPage() {
 
   return (
     <Layout>
+      {selectedEvent && (
+        <EventModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+      )}
+
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <button onClick={() => navigate('/people')} className="text-sm text-ink-muted hover:text-ink transition-colors">← Back</button>
         <h1 className="text-xl font-bold text-ink">{userName}'s Calendar</h1>
         <span className="text-xs px-2 py-0.5 rounded-pill bg-coral-tint text-coral-dark">
           {isFriend ? 'Friend view' : 'Public view'}
         </span>
-        {ownerTz !== 'UTC' && (
-          <span className="text-xs px-2 py-0.5 rounded-pill bg-warm-card text-ink-muted border border-warm-border">
-            {ownerTz}
-          </span>
-        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -251,9 +295,13 @@ export default function UserCalendarPage() {
       {loading ? (
         <div className="text-center py-20 text-sm text-ink-muted">Loading calendar…</div>
       ) : view === 'month' ? (
-        <ProfileMonthView year={year} month={month} events={events} ownerTz={ownerTz} onDayClick={d => { setSelected(d); setView('day'); }} />
+        <ProfileMonthView
+          year={year} month={month} events={events}
+          onDayClick={d => { setSelected(d); setView('day'); }}
+          onEventClick={setSelectedEvent}
+        />
       ) : (
-        <ProfileDayView date={selected} events={events} ownerTz={ownerTz} />
+        <ProfileDayView date={selected} events={events} onEventClick={setSelectedEvent} />
       )}
     </Layout>
   );

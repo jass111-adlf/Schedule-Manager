@@ -77,8 +77,6 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
             eventType:            e.eventType,
             customTypeId:         e.customTypeId,
             customType:           e.customType,
-            reminderMinutesBefore: e.reminderMinutesBefore,
-            reminderMethod:       e.reminderMethod,
             timezone:             e.timezone,
             recurrenceType:       e.recurrenceType,
             repeatUntil:          e.repeatUntil,
